@@ -99,7 +99,7 @@ private fun PortalApp() {
                     if (files.isNotEmpty()) IconButton(onClick = { files.clear() }) { Icon(Icons.Outlined.DeleteOutline, "Clear shelf", tint = Muted) }
                 }
                 if (files.isEmpty()) {
-                    Box(Modifier.weight(1f).fillMaxWidth().background(Panel, RoundedCornerShape(20.dp)), contentAlignment = Alignment.Center) {
+                    Box(Modifier.fillMaxWidth().heightIn(min = 220.dp).background(Panel, RoundedCornerShape(20.dp)), contentAlignment = Alignment.Center) {
                         Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(10.dp)) {
                             Icon(Icons.Outlined.FolderOpen, null, tint = Accent, modifier = Modifier.size(34.dp))
                             Text("Nothing here yet", color = Paper)
