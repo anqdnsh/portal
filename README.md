@@ -12,11 +12,17 @@ PORTAL is an Android productivity utility inspired by temporary file shelves suc
 ## Build
 Open in Android Studio with JDK 17 and Android SDK 35, sync Gradle, then run the app. Build with `gradle assembleDebug`.
 
+## Current prototype features
+- Persistent file shelf
+- Multi-file import and Android share-sheet intake
+- Open and share collected files
+- Optional compact, draggable floating PORTAL tab
+- Explicit Android overlay permission and foreground notification
+
 ## Roadmap
-1. File shelf and multi-file import
-2. Drag-and-drop support
-3. Floating overlay, subject to Android restrictions
-4. DeX interaction polish
-5. Cursor-shake summon experiment where platform APIs permit
+1. Drag-and-drop from other apps into the shelf
+2. DeX-specific positioning, keyboard shortcuts and pointer polish
+3. Cursor-shake summon experiment where platform APIs permit
+4. Automated UI tests, release signing and Play Store preparation
 
 Publisher: ATELIER TECH
