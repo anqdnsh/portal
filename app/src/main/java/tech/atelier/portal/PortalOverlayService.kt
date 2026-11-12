@@ -152,24 +152,32 @@ class PortalOverlayService : Service() {
     }
 
     private fun refreshRows(content: LinearLayout) {
-        while (content.childCount > 1) content.removeViewAt(0)
+        content.removeAllViews()
         val files = FileShelf.all(this).take(5)
-        files.forEach { file ->
-            val row = label("▧   ${file.displayName}", 11f, Color.WHITE).apply {
-                maxLines = 1
-                ellipsize = android.text.TextUtils.TruncateAt.END
-                setOnClickListener {
-                    runCatching {
-                        val uri = FileShelf.uri(this@PortalOverlayService, file)
-                        startActivity(Intent(Intent.ACTION_VIEW).setDataAndType(uri, file.mime)
-                            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_GRANT_READ_URI_PERMISSION))
+        if (files.isEmpty()) {
+            content.addView(label("Drop files here to collect them", 11f, Color.LTGRAY),
+                LinearLayout.LayoutParams(-1, dp(42)))
+        } else {
+            files.forEach { file ->
+                val row = label("▧   ${file.displayName}", 11f, Color.WHITE).apply {
+                    maxLines = 1
+                    ellipsize = android.text.TextUtils.TruncateAt.END
+                    setOnClickListener {
+                        runCatching {
+                            val uri = FileShelf.uri(this@PortalOverlayService, file)
+                            startActivity(Intent(Intent.ACTION_VIEW).setDataAndType(uri, file.mime)
+                                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_GRANT_READ_URI_PERMISSION))
+                        }
                     }
                 }
+                content.addView(row, LinearLayout.LayoutParams(-1, dp(42)))
             }
-            content.addView(row, LinearLayout.LayoutParams(-1, dp(42)))
         }
-        if (files.isEmpty()) content.addView(label("Drop files here to collect them", 11f, Color.LTGRAY),
-            LinearLayout.LayoutParams(-1, dp(42)), 0)
+        val footer = label("OPEN FULL SHELF  ↗", 10f, Color.rgb(110, 160, 255), true).apply {
+            gravity = Gravity.CENTER
+            setOnClickListener { openMain() }
+        }
+        content.addView(footer, LinearLayout.LayoutParams(-1, dp(40)))
     }
 
     private fun openMain() {
