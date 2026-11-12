@@ -1,32 +1,28 @@
 # PORTAL — Product specification
 Publisher: ATELIER TECH
 Application ID: tech.atelier.portal
-Version: 0.1.0
+Version: 0.3.0
 
-## Purpose
-A temporary file shelf for Android productivity workflows, inspired by Dropover.
-
-## Platforms
-Android phones/tablets, Samsung One UI and DeX.
+## Product goal
+A compact, persistent file drop shelf for Samsung One UI and DeX, inspired by the quick-collect workflow of Dropover.
 
 ## Visual direction
-Minimal premium interface: charcoal and black surfaces, blue accent, muted grey metadata, off-white text.
+Premium minimal interface: black and charcoal surfaces, white text, muted grey metadata and a clear blue accent. The floating shelf remains compact while collapsed and expands only when requested.
 
-## Prototype scope
-- Kotlin + Jetpack Compose
-- Multi-file import using Android Storage Access Framework
-- Persist read permission where supported
-- Display filenames and MIME types
-- Remove individual files or clear shelf
-- Adaptive tablet layout
+## Implemented in the current 0.3 build
+- Import multiple files through Android's document picker.
+- Receive single and multiple files through Android's share sheet.
+- Copy selected files into app-private storage so the shelf does not depend on temporary provider URI access.
+- Persistent shelf across app restarts.
+- Open, share, remove and clear collected files.
+- Drag a collected file out of the app using Android global drag-and-drop.
+- Optional floating overlay with a compact draggable tab, expandable mini shelf, file drop target and quick open action.
+- Foreground notification and explicit overlay permission flow.
 
-## Roadmap
-1. Drag-and-drop using Android APIs
-2. Receive files from Android share sheet
-3. Floating shelf overlay with explicit permission and foreground-service compliance
-4. DeX-specific sizing, keyboard shortcuts and pointer polish
-5. Cursor-shake summon experiment; Android does not provide a universal global mouse-motion hook to ordinary apps
-6. Persistence, accessibility, testing and release hardening
+## Platform constraints
+- Android global drag-and-drop works only when the source app exposes a compatible drag operation and the target accepts it. Some Samsung/third-party apps may not expose draggable file URIs.
+- A normal Android app cannot continuously observe global mouse movement or intercept arbitrary Shift+mouse gestures while another app is active. Cursor-shake activation is therefore not promised. The floating overlay and Android share sheet are the supported collection entry points.
+- Samsung DeX and One UI versions differ. A successful CI build does not prove every OEM drag-and-drop path works on every device; device testing is required.
 
 ## Privacy
-No account, analytics, ads or backend in this prototype. Files are selected explicitly by the user; no broad storage permission is requested.
+No account, analytics, ads or backend. Files are copied only after the user selects or drops them and remain in app-private storage until removed or the app is uninstalled.
