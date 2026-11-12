@@ -12,6 +12,7 @@ import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
 import android.os.Build
 import android.os.IBinder
+import android.view.DragEvent
 import android.view.Gravity
 import android.view.MotionEvent
 import android.view.View
@@ -62,6 +63,24 @@ class PortalOverlayService : Service() {
                 setStroke(dp(1), Color.rgb(93, 111, 142))
             }
             elevation = dp(10).toFloat()
+        }
+        tab.setOnDragListener { _, event ->
+            when (event.action) {
+                DragEvent.ACTION_DRAG_STARTED -> true
+                DragEvent.ACTION_DROP -> {
+                    val dropped = mutableListOf<android.net.Uri>()
+                    val clip = event.clipData
+                    for (i in 0 until clip.itemCount) clip.getItemAt(i).uri?.let(dropped::add)
+                    if (dropped.isNotEmpty()) {
+                        FileShelf.importUris(this, dropped)
+                        val open = Intent(this, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+                        startActivity(open)
+                    }
+                    true
+                }
+                DragEvent.ACTION_DRAG_ENDED -> true
+                else -> true
+            }
         }
         params = WindowManager.LayoutParams(
             WindowManager.LayoutParams.WRAP_CONTENT,
