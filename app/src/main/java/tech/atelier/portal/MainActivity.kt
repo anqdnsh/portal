@@ -34,16 +34,15 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
-private val Ink = Color(0xFF101311)
-private val Panel = Color(0xFF191E1B)
-private val Raised = Color(0xFF252C27)
-private val Accent = Color(0xFFB7C9F5)
-private val Muted = Color(0xFF929A9F)
-private val Paper = Color(0xFFF1F3F6)
-private const val PREFS = "portal_shelf"
-private const val KEY_URIS = "uris"
+private val Ink = Color(0xFF101216)
+private val Panel = Color(0xFF191D24)
+private val Raised = Color(0xFF252B35)
+private val Accent = Color(0xFF4D8DFF)
+private val Muted = Color(0xFF929BAA)
+private val Paper = Color(0xFFF4F6FA)
 
-data class ShelfFile(val uri: Uri, val name: String, val mime: String?)
+
+
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -79,14 +78,14 @@ class MainActivity : ComponentActivity() {
 @Composable
 private fun PortalApp(sharedUris: List<Uri>) {
     val context = LocalContext.current
-    val prefs = remember { context.getSharedPreferences(PREFS, 0) }
+    var files by remember { mutableStateOf(FileShelf.all(context)) }
     var overlayEnabled by remember { mutableStateOf(Settings.canDrawOverlays(context)) }
+    fun refresh() { files = FileShelf.all(context) }
     val overlaySettings = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) {
         overlayEnabled = Settings.canDrawOverlays(context)
         if (overlayEnabled) {
-            val serviceIntent = Intent(context, PortalOverlayService::class.java)
-            if (android.os.Build.VERSION.SDK_INT >= 26) context.startForegroundService(serviceIntent)
-            else context.startService(serviceIntent)
+            val i = Intent(context, PortalOverlayService::class.java)
+            if (android.os.Build.VERSION.SDK_INT >= 26) context.startForegroundService(i) else context.startService(i)
         }
     }
     fun toggleOverlay() {
@@ -94,46 +93,24 @@ private fun PortalApp(sharedUris: List<Uri>) {
             context.stopService(Intent(context, PortalOverlayService::class.java))
             overlayEnabled = false
         } else if (Settings.canDrawOverlays(context)) {
-            val serviceIntent = Intent(context, PortalOverlayService::class.java)
-            if (android.os.Build.VERSION.SDK_INT >= 26) context.startForegroundService(serviceIntent)
-            else context.startService(serviceIntent)
+            val i = Intent(context, PortalOverlayService::class.java)
+            if (android.os.Build.VERSION.SDK_INT >= 26) context.startForegroundService(i) else context.startService(i)
             overlayEnabled = true
-        } else {
-            overlaySettings.launch(Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:" + context.packageName)))
-        }
+        } else overlaySettings.launch(Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:" + context.packageName)))
     }
-    fun describe(uri: Uri): ShelfFile {
-        val name = runCatching {
-            context.contentResolver.query(uri, null, null, null, null)?.use { c ->
-                val i = c.getColumnIndex(OpenableColumns.DISPLAY_NAME)
-                if (c.moveToFirst() && i >= 0) c.getString(i) else null
-            }
-        }.getOrNull() ?: uri.lastPathSegment ?: "Untitled"
-        return ShelfFile(uri, name, context.contentResolver.getType(uri))
+    LaunchedEffect(sharedUris) {
+        if (sharedUris.isNotEmpty()) FileShelf.importUris(context, sharedUris)
+        refresh()
     }
-    val files = remember {
-        mutableStateListOf<ShelfFile>().apply {
-            prefs.getStringSet(KEY_URIS, emptySet()).orEmpty().forEach { raw ->
-                runCatching { Uri.parse(raw) }.getOrNull()?.let { uri ->
-                    runCatching { add(describe(uri)) }
-                }
-            }
-        }
-    }
-    fun addUris(uris: List<Uri>, persist: Boolean) {
-        uris.distinct().forEach { uri ->
-            if (persist) runCatching {
-                context.contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
-            }
-            if (files.none { it.uri == uri }) runCatching { files.add(describe(uri)) }
-        }
-    }
-    LaunchedEffect(sharedUris) { addUris(sharedUris, false) }
-    LaunchedEffect(files.size, files.map { it.uri.toString() }) {
-        prefs.edit().putStringSet(KEY_URIS, files.map { it.uri.toString() }.toSet()).apply()
+    DisposableEffect(Unit) {
+        val prefs = context.getSharedPreferences("portal_shelf", 0)
+        val listener = android.content.SharedPreferences.OnSharedPreferenceChangeListener { _, _ -> refresh() }
+        prefs.registerOnSharedPreferenceChangeListener(listener)
+        onDispose { prefs.unregisterOnSharedPreferenceChangeListener(listener) }
     }
     val picker = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris ->
-        addUris(uris, true)
+        if (uris.isNotEmpty()) FileShelf.importUris(context, uris)
+        refresh()
     }
 
     MaterialTheme(colorScheme = darkColorScheme(primary = Accent, onPrimary = Ink, background = Ink, surface = Panel, onSurface = Paper, secondary = Muted)) {
@@ -149,7 +126,7 @@ private fun PortalApp(sharedUris: List<Uri>) {
                         Text("BY ATELIER TECH", color = Muted, fontSize = 9.sp, letterSpacing = 1.5.sp)
                     }
                     Spacer(Modifier.weight(1f))
-                    Text("BETA 0.2", color = Accent, fontSize = 10.sp)
+                    Text("0.3 BETA", color = Accent, fontSize = 10.sp)
                 }
                 Card(colors = CardDefaults.cardColors(containerColor = Panel), shape = RoundedCornerShape(24.dp), modifier = Modifier.fillMaxWidth()) {
                     Column(Modifier.padding(22.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
@@ -161,7 +138,7 @@ private fun PortalApp(sharedUris: List<Uri>) {
                             Spacer(Modifier.width(8.dp))
                             Text("Add files to shelf", fontWeight = FontWeight.SemiBold)
                         }
-                        Text(if (files.isEmpty()) "YOUR SHELF IS READY" else "${files.size} FILES COLLECTED", color = Muted, fontSize = 10.sp, letterSpacing = 1.2.sp)
+                        Text("${files.size} FILES IN YOUR SHELF", color = Muted, fontSize = 10.sp, letterSpacing = 1.2.sp)
                     }
                 }
                 Card(colors = CardDefaults.cardColors(containerColor = Raised), shape = RoundedCornerShape(16.dp), modifier = Modifier.fillMaxWidth()) {
@@ -182,7 +159,7 @@ private fun PortalApp(sharedUris: List<Uri>) {
                         Text("YOUR SHELF", color = Accent, fontSize = 10.sp, letterSpacing = 1.8.sp)
                         Text("Collected files", color = Paper, fontSize = 22.sp, fontWeight = FontWeight.SemiBold)
                     }
-                    if (files.isNotEmpty()) IconButton(onClick = { files.clear() }) { Icon(Icons.Outlined.DeleteOutline, "Clear shelf", tint = Muted) }
+                    if (files.isNotEmpty()) IconButton(onClick = { FileShelf.clear(context); refresh() }) { Icon(Icons.Outlined.DeleteOutline, "Clear shelf", tint = Muted) }
                 }
                 if (files.isEmpty()) {
                     Box(Modifier.weight(1f).fillMaxWidth().background(Panel, RoundedCornerShape(20.dp)), contentAlignment = Alignment.Center) {
@@ -194,7 +171,7 @@ private fun PortalApp(sharedUris: List<Uri>) {
                     }
                 } else {
                     LazyColumn(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(9.dp)) {
-                        items(files, key = { it.uri.toString() }) { file ->
+                        items(files, key = { it.id }) { file ->
                             Card(colors = CardDefaults.cardColors(containerColor = Panel), shape = RoundedCornerShape(15.dp)) {
                                 Row(Modifier.fillMaxWidth().padding(start = 12.dp, end = 4.dp, top = 6.dp, bottom = 6.dp), verticalAlignment = Alignment.CenterVertically) {
                                     Icon(Icons.Outlined.Description, null, tint = Accent)
@@ -202,24 +179,24 @@ private fun PortalApp(sharedUris: List<Uri>) {
                                     Column(Modifier.weight(1f).clickable {
                                         runCatching {
                                             val view = Intent(Intent.ACTION_VIEW).apply {
-                                                setDataAndType(file.uri, file.mime ?: "*/*")
+                                                setDataAndType(FileShelf.uri(context, file), file.mime)
                                                 addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
                                             }
                                             context.startActivity(view)
                                         }
                                     }.padding(vertical = 8.dp)) {
-                                        Text(file.name, color = Paper, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                                        Text(file.mime ?: "File · Tap to open", color = Muted, fontSize = 10.sp)
+                                        Text(file.displayName, color = Paper, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                        Text(file.mime, color = Muted, fontSize = 10.sp)
                                     }
                                     IconButton(onClick = {
                                         val send = Intent(Intent.ACTION_SEND).apply {
                                             type = file.mime ?: "*/*"
-                                            putExtra(Intent.EXTRA_STREAM, file.uri)
+                                            putExtra(Intent.EXTRA_STREAM, FileShelf.uri(context, file))
                                             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
                                         }
                                         context.startActivity(Intent.createChooser(send, "Share from PORTAL"))
                                     }) { Icon(Icons.Outlined.OpenInNew, "Share file", tint = Muted) }
-                                    IconButton(onClick = { files.remove(file) }) { Icon(Icons.Outlined.DeleteOutline, "Remove", tint = Muted) }
+                                    IconButton(onClick = { FileShelf.remove(context, file.id); refresh() }) { Icon(Icons.Outlined.DeleteOutline, "Remove", tint = Muted) }
                                 }
                             }
                         }
