@@ -1,28 +1,21 @@
 # PORTAL
 **By ATELIER TECH**
 
-PORTAL is an Android productivity utility inspired by temporary file shelves such as Dropover.
+PORTAL is a compact, persistent file drop shelf for Android, designed for Samsung One UI and DeX.
 
-## Prototype
-- Native Kotlin + Jetpack Compose
-- Import multiple files through Android Storage Access Framework
-- View collected files, remove individual items, or clear the shelf
-- Responsive tablet and DeX-friendly layout
+## Current 0.3 functionality
+- Import multiple files through Android's document picker.
+- Receive files through Android's share sheet.
+- Copy collected files into private app storage for persistence.
+- Open, share, remove and clear collected files.
+- Drag files out of the shelf using Android global drag-and-drop.
+- Enable a small floating PORTAL tab that expands into a mini shelf and accepts compatible file drops.
+- Dark black/grey interface with blue accent.
+
+## Platform notes
+Android does not expose unrestricted global mouse-motion monitoring to ordinary apps. Cursor-shake and universal Shift+drag interception cannot be guaranteed. Drag-and-drop depends on the source app exposing file URIs and on Android/DeX accepting the global drag operation.
 
 ## Build
-Open in Android Studio with JDK 17 and Android SDK 35, sync Gradle, then run the app. Build with `gradle assembleDebug`.
-
-## Current prototype features
-- Persistent file shelf
-- Multi-file import and Android share-sheet intake
-- Open and share collected files
-- Optional compact, draggable floating PORTAL tab
-- Explicit Android overlay permission and foreground notification
-
-## Roadmap
-1. Drag-and-drop from other apps into the shelf
-2. DeX-specific positioning, keyboard shortcuts and pointer polish
-3. Cursor-shake summon experiment where platform APIs permit
-4. Automated UI tests, release signing and Play Store preparation
+Open in Android Studio with JDK 17 and Android SDK 35, sync Gradle, then run the app. Build with `gradle testDebugUnitTest assembleDebug`.
 
 Publisher: ATELIER TECH
