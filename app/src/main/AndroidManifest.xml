@@ -36,5 +36,12 @@
                 android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
                 android:value="User-enabled floating file shelf shortcut" />
         </service>
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="tech.atelier.portal.files"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data android:name="android.support.FILE_PROVIDER_PATHS" android:resource="@xml/portal_file_paths" />
+        </provider>
     </application>
 </manifest>
