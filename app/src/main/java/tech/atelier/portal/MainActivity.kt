@@ -1,6 +1,8 @@
 package tech.atelier.portal
 
 import android.content.Intent
+import android.content.ClipData
+import android.view.View
 import android.net.Uri
 import android.os.Bundle
 import android.provider.Settings
@@ -11,6 +13,7 @@ import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -29,6 +32,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -78,6 +83,7 @@ class MainActivity : ComponentActivity() {
 @Composable
 private fun PortalApp(sharedUris: List<Uri>) {
     val context = LocalContext.current
+    val rootView = LocalView.current
     var files by remember { mutableStateOf(FileShelf.all(context)) }
     var overlayEnabled by remember { mutableStateOf(Settings.canDrawOverlays(context)) }
     fun refresh() { files = FileShelf.all(context) }
@@ -184,6 +190,18 @@ private fun PortalApp(sharedUris: List<Uri>) {
                                             }
                                             context.startActivity(view)
                                         }
+                                    }.pointerInput(file.id) {
+                                        detectDragGesturesAfterLongPress(
+                                            onDragStart = {
+                                                runCatching {
+                                                    val fileUri = FileShelf.uri(context, file)
+                                                    val clip = ClipData.newUri(context.contentResolver, file.displayName, fileUri)
+                                                    rootView.startDragAndDrop(clip, View.DragShadowBuilder(rootView), null,
+                                                        View.DRAG_FLAG_GLOBAL or View.DRAG_FLAG_GLOBAL_URI_READ)
+                                                }
+                                            },
+                                            onDrag = { change, _ -> change.consume() }
+                                        )
                                     }.padding(vertical = 8.dp)) {
                                         Text(file.displayName, color = Paper, maxLines = 1, overflow = TextOverflow.Ellipsis)
                                         Text(file.mime, color = Muted, fontSize = 10.sp)
