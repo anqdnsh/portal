@@ -3,6 +3,7 @@ package tech.atelier.portal
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
+import android.provider.Settings
 import android.provider.OpenableColumns
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -21,6 +22,7 @@ import androidx.compose.material.icons.outlined.DeleteOutline
 import androidx.compose.material.icons.outlined.FolderOpen
 import androidx.compose.material.icons.outlined.Layers
 import androidx.compose.material.icons.outlined.OpenInNew
+import androidx.compose.material.icons.outlined.Widgets
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -78,6 +80,28 @@ class MainActivity : ComponentActivity() {
 private fun PortalApp(sharedUris: List<Uri>) {
     val context = LocalContext.current
     val prefs = remember { context.getSharedPreferences(PREFS, 0) }
+    var overlayEnabled by remember { mutableStateOf(Settings.canDrawOverlays(context)) }
+    val overlaySettings = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) {
+        overlayEnabled = Settings.canDrawOverlays(context)
+        if (overlayEnabled) {
+            val serviceIntent = Intent(context, PortalOverlayService::class.java)
+            if (android.os.Build.VERSION.SDK_INT >= 26) context.startForegroundService(serviceIntent)
+            else context.startService(serviceIntent)
+        }
+    }
+    fun toggleOverlay() {
+        if (overlayEnabled) {
+            context.stopService(Intent(context, PortalOverlayService::class.java))
+            overlayEnabled = false
+        } else if (Settings.canDrawOverlays(context)) {
+            val serviceIntent = Intent(context, PortalOverlayService::class.java)
+            if (android.os.Build.VERSION.SDK_INT >= 26) context.startForegroundService(serviceIntent)
+            else context.startService(serviceIntent)
+            overlayEnabled = true
+        } else {
+            overlaySettings.launch(Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:" + context.packageName)))
+        }
+    }
     fun describe(uri: Uri): ShelfFile {
         val name = runCatching {
             context.contentResolver.query(uri, null, null, null, null)?.use { c ->
@@ -138,6 +162,19 @@ private fun PortalApp(sharedUris: List<Uri>) {
                             Text("Add files to shelf", fontWeight = FontWeight.SemiBold)
                         }
                         Text(if (files.isEmpty()) "YOUR SHELF IS READY" else "${files.size} FILES COLLECTED", color = Muted, fontSize = 10.sp, letterSpacing = 1.2.sp)
+                    }
+                }
+                Card(colors = CardDefaults.cardColors(containerColor = Raised), shape = RoundedCornerShape(16.dp), modifier = Modifier.fillMaxWidth()) {
+                    Row(Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Outlined.Widgets, contentDescription = null, tint = Accent)
+                        Spacer(Modifier.width(10.dp))
+                        Column(Modifier.weight(1f)) {
+                            Text("Floating shelf", color = Paper, fontWeight = FontWeight.Medium, fontSize = 13.sp)
+                            Text(if (overlayEnabled) "Shortcut is active" else "Keep a small PORTAL tab above apps", color = Muted, fontSize = 10.sp)
+                        }
+                        TextButton(onClick = { toggleOverlay() }) {
+                            Text(if (overlayEnabled) "Turn off" else "Enable", color = Accent)
+                        }
                     }
                 }
                 Row(verticalAlignment = Alignment.CenterVertically) {
