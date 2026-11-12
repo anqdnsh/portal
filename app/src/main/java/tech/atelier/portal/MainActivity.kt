@@ -52,6 +52,7 @@ class MainActivity : ComponentActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
+        setContent { PortalApp(sharedUris = extractUris(intent)) }
     }
 
     private fun extractUris(source: Intent?): List<Uri> {
@@ -59,7 +60,11 @@ class MainActivity : ComponentActivity() {
         val result = mutableListOf<Uri>()
         source.data?.let(result::add)
         source.clipData?.let { clip -> for (i in 0 until clip.itemCount) clip.getItemAt(i).uri?.let(result::add) }
-        if (android.os.Build.VERSION.SDK_INT >= 33) {
+        if (source.action == Intent.ACTION_SEND_MULTIPLE) {
+            @Suppress("DEPRECATION")
+            val streams = source.getParcelableArrayListExtra<Uri>(Intent.EXTRA_STREAM)
+            streams?.let(result::addAll)
+        } else if (android.os.Build.VERSION.SDK_INT >= 33) {
             source.getParcelableExtra(Intent.EXTRA_STREAM, Uri::class.java)?.let(result::add)
         } else {
             @Suppress("DEPRECATION")
