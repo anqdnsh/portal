@@ -60,6 +60,12 @@ class ShelfRoot(context: Context, val pal: Palette) : FrameLayout(context), Chor
     /** Extra brightness while something is dragged over the shelf. */
     var hot = 0f
         set(v) { field = v; invalidate() }
+    /** The small handle at the top centre while the shelf is put away (0 hidden, 1 shown). */
+    var pill = 0f
+        set(v) { field = v; invalidate() }
+    var pillHover = 0f
+        set(v) { field = v; invalidate() }
+    private val pillPaint = Paint(Paint.ANTI_ALIAS_FLAG)
     var panelRadius = context.dp(22f)
 
     private val cornerPaint = Paint(Paint.ANTI_ALIAS_FLAG)
@@ -114,9 +120,23 @@ class ShelfRoot(context: Context, val pal: Palette) : FrameLayout(context), Chor
     }
 
     override fun dispatchDraw(canvas: Canvas) {
+        drawPill(canvas)
         drawCorner(canvas)
         drawHalo(canvas)
         super.dispatchDraw(canvas)
+    }
+
+    private fun drawPill(c: Canvas) {
+        if (pill <= 0.01f) return
+        val cx = width / 2f
+        val w = (context.dp(38f) + context.dp(18f) * pillHover) * (0.4f + 0.6f * pill)
+        val h = context.dp(5f) + context.dp(1f) * pillHover
+        val top = context.dp(7f)
+        rect.set(cx - w / 2f, top, cx + w / 2f, top + h)
+        val idle = withAlpha(pal.sub, 0.55f)
+        pillPaint.color = withAlpha(mix(idle, pal.accent, pillHover), pill * (0.75f + 0.25f * pillHover))
+        pillPaint.setShadowLayer(context.dp(4f) + context.dp(8f) * pillHover, 0f, 0f, withAlpha(pal.glow, (0.35f + 0.55f * pillHover) * pill))
+        c.drawRoundRect(rect, h / 2f, h / 2f, pillPaint)
     }
 
     /** The breathing blue light along the top edge, like light leaking from a notch. Just the edge, no haze. */
@@ -236,6 +256,15 @@ class IconButtonView(context: Context, private val pal: Palette, var glyph: Glyp
         set(v) { field = v; invalidate() }
     private var hover = 0f
     private val hoverSpring = Spring(Motion.POP_K, 0.9f) { hover = it; invalidate() }
+    /** 0..1 while an item is dragged over this button (the bin): it swells and turns red. */
+    private var danger = 0f
+    private val dangerSpring = Spring(Motion.POP_K, Motion.POP_Z) {
+        danger = it
+        val s = 1f + 0.28f * it
+        scaleX = s; scaleY = s
+        invalidate()
+    }
+    fun setDragHover(on: Boolean) = dangerSpring.animateTo(if (on) 1f else 0f)
     private val bg = Paint(Paint.ANTI_ALIAS_FLAG)
     private val icon = Glyphs.paint(pal.text, 2f)
     private val rect = RectF()
@@ -257,9 +286,12 @@ class IconButtonView(context: Context, private val pal: Palette, var glyph: Glyp
     override fun onDraw(c: Canvas) {
         rect.set(0f, 0f, width.toFloat(), height.toFloat())
         val r = context.dp(10f)
-        bg.color = if (active) pal.accentSoft else withAlpha(pal.tileHover, Color.alpha(pal.tileHover) / 255f * hover)
+        val base = if (active) pal.accentSoft else withAlpha(pal.tileHover, Color.alpha(pal.tileHover) / 255f * hover)
+        bg.color = mix(base, 0xE6FF4D57.toInt(), danger)
+        if (danger > 0.02f) bg.setShadowLayer(context.dp(12f) * danger, 0f, 0f, withAlpha(0xFFFF4D57.toInt(), 0.8f * danger.coerceAtMost(1f)))
+        else bg.clearShadowLayer()
         c.drawRoundRect(rect, r, r, bg)
-        icon.color = if (active) pal.accent else pal.text
+        icon.color = mix(if (active) pal.accent else pal.text, Color.WHITE, danger)
         Glyphs.draw(c, glyph, width / 2f, height / 2f, context.dp(15f), icon)
     }
 }
@@ -645,3 +677,62 @@ class EmptyHint(context: Context, private val pal: Palette) : View(context) {
 
 internal fun dist(a: Float, b: Float) = abs(a - b)
 internal fun lerpF(a: Float, b: Float, t: Float) = lerp(a, b, t)
+
+/**
+ * The shelf's top row. Grab it and push up to tuck the shelf back into the notch: the shelf
+ * follows your finger or mouse, and a flick or a long enough push sends it home on a spring.
+ */
+class GrabHeader(
+    context: Context,
+    private val onPull: (dy: Float) -> Unit,
+    private val onRelease: (dy: Float, vy: Float) -> Unit,
+) : LinearLayout(context) {
+    private val slop = ViewConfiguration.get(context).scaledTouchSlop
+    private var downY = 0f
+    private var downX = 0f
+    private var pulling = false
+    private var vt: android.view.VelocityTracker? = null
+
+    init {
+        orientation = HORIZONTAL
+        gravity = android.view.Gravity.CENTER_VERTICAL
+    }
+
+    override fun onInterceptTouchEvent(e: MotionEvent): Boolean {
+        when (e.actionMasked) {
+            MotionEvent.ACTION_DOWN -> {
+                downY = e.rawY; downX = e.rawX; pulling = false
+                vt?.recycle(); vt = android.view.VelocityTracker.obtain()
+                vt?.addMovement(e)
+            }
+            MotionEvent.ACTION_MOVE -> {
+                vt?.addMovement(e)
+                val dy = e.rawY - downY
+                if (!pulling && abs(dy) > slop && abs(dy) > abs(e.rawX - downX)) {
+                    pulling = true
+                    parent?.requestDisallowInterceptTouchEvent(true)
+                }
+            }
+        }
+        return pulling
+    }
+
+    @SuppressLint("ClickableViewAccessibility")
+    override fun onTouchEvent(e: MotionEvent): Boolean {
+        vt?.addMovement(e)
+        when (e.actionMasked) {
+            MotionEvent.ACTION_DOWN -> return true
+            MotionEvent.ACTION_MOVE -> { if (pulling) onPull(e.rawY - downY); return true }
+            MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                if (pulling) {
+                    vt?.computeCurrentVelocity(1000)
+                    onRelease(e.rawY - downY, vt?.yVelocity ?: 0f)
+                }
+                pulling = false
+                vt?.recycle(); vt = null
+                return true
+            }
+        }
+        return true
+    }
+}

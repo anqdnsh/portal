@@ -121,6 +121,25 @@ class ShelfWindow(
     private val openSpring = Spring(Motion.OPEN_K, Motion.OPEN_Z) { applyOpen(it) }
     private val glowSpring = Spring(Motion.OPEN_K, Motion.OPEN_Z) { root.glow = it.coerceAtLeast(0f) }
     private val hotSpring = Spring(Motion.POP_K, 0.9f) { root.hot = it; empty.hot = it }
+    private val pillSpring = Spring(Motion.OPEN_K, 0.8f) { root.pill = it.coerceAtLeast(0f) }
+    private val pillHoverSpring = Spring(Motion.POP_K, 0.85f) { root.pillHover = it.coerceIn(0f, 1.2f) }
+
+    /** Show the handle only while the shelf is put away and has something on it. */
+    private val pillShown get() = Prefs.showPill(ctx) && ShelfStore.count() > 0
+    private var pillWasShown = false
+
+    private fun updatePill() {
+        val show = state == State.IDLE && pillShown
+        pillSpring.animateTo(if (show) 1f else 0f)
+        if (state == State.IDLE && pillShown != pillWasShown) setWindow(State.IDLE)
+        pillWasShown = pillShown
+    }
+
+    /** Pushing the header up by most of the shelf's height closes it; pulling down stretches a little. */
+    private fun pullToProgress(dy: Float): Float {
+        val h = panel.height.coerceAtLeast(1) * 0.9f
+        return if (dy < 0) (1f + dy / h).coerceIn(0f, 1f) else 1f + (dy / h).coerceAtMost(0.3f) * 0.12f
+    }
     private val kidSprings = HashMap<View, Spring>()
 
     private val lp = WindowManager.LayoutParams(
@@ -159,10 +178,20 @@ class ShelfWindow(
         }
 
         // Header: title, pin, clear
-        val header = LinearLayout(ctx).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER_VERTICAL
-        }
+        // Push the header up to tuck the shelf away; it follows the pointer the whole way.
+        val header = tech.atelier.portal.ui.GrabHeader(ctx,
+            onPull = { dy -> openSpring.snapTo(pullToProgress(dy)) },
+            onRelease = { dy, vy ->
+                val p = pullToProgress(dy)
+                val speed = vy / (panel.height.coerceAtLeast(1) * 0.9f)
+                if (p < 0.78f || vy < -ctx.dp(600f)) {
+                    openSpring.setVelocity(speed)
+                    close()
+                } else {
+                    openSpring.setVelocity(speed)
+                    openSpring.animateTo(1f, Motion.OPEN_K, Motion.OPEN_Z)
+                }
+            })
         header.addView(title, LinearLayout.LayoutParams(0, ctx.dpi(30f), 1f))
         header.addView(pinBtn, LinearLayout.LayoutParams(ctx.dpi(30f), ctx.dpi(30f)))
         header.addView(clearBtn, LinearLayout.LayoutParams(ctx.dpi(30f), ctx.dpi(30f)).apply { marginStart = ctx.dpi(2f) })
@@ -227,9 +256,42 @@ class ShelfWindow(
         root.setOnReceiveContentListener(MIMES, keepReceive)
         listOf<View>(panel, header, title, pinBtn, clearBtn, actionRow, scroll, grid, empty, status).forEach(::keepTarget)
 
+        // Drag a kept item onto the bin to remove it.
+        clearBtn.setOnDragListener { _, e ->
+            val mine = e.localState is PortalDrag
+            when (e.action) {
+                DragEvent.ACTION_DRAG_STARTED -> mine
+                DragEvent.ACTION_DRAG_ENTERED -> { if (mine) clearBtn.setDragHover(true); true }
+                DragEvent.ACTION_DRAG_EXITED, DragEvent.ACTION_DRAG_ENDED -> { clearBtn.setDragHover(false); true }
+                DragEvent.ACTION_DROP -> {
+                    clearBtn.setDragHover(false)
+                    val local = e.localState
+                    if (local is PortalDrag) {
+                        droppedThisDrag = true
+                        local.ids.forEach { selection.remove(it); ShelfStore.remove(it) }
+                        flash(if (local.ids.size == 1) "Removed" else "Removed ${local.ids.size} items")
+                        true
+                    } else false
+                }
+                else -> true
+            }
+        }
+
+        root.setOnHoverListener { _, e ->
+            if (state == State.IDLE) when (e.actionMasked) {
+                MotionEvent.ACTION_HOVER_ENTER -> pillHoverSpring.animateTo(1f)
+                MotionEvent.ACTION_HOVER_EXIT -> pillHoverSpring.animateTo(0f)
+            }
+            false
+        }
+
         root.setOnTouchListener { _, e ->
             if (e.actionMasked == MotionEvent.ACTION_OUTSIDE) {
                 if (state == State.OPEN && !pinned && !dragActive) close()
+                true
+            } else if (state == State.IDLE) {
+                // The handle: click (or tap) it to bring the shelf back down.
+                if (e.actionMasked == MotionEvent.ACTION_UP) { pillHoverSpring.animateTo(0f); open(byDrag = false) }
                 true
             } else false
         }
@@ -244,13 +306,14 @@ class ShelfWindow(
 
     private fun sizeFor(s: State) {
         when (s) {
-            State.IDLE -> { lp.width = ctx.dpi(180f); lp.height = ctx.dpi(8f) }
+            State.IDLE -> if (pillShown) { lp.width = ctx.dpi(110f); lp.height = ctx.dpi(26f) }
+                else { lp.width = ctx.dpi(180f); lp.height = ctx.dpi(8f) }
             State.SENSING -> { lp.width = ctx.dpi(300f); lp.height = ctx.dpi(84f) }
             State.OPEN -> { lp.width = WindowManager.LayoutParams.WRAP_CONTENT; lp.height = WindowManager.LayoutParams.WRAP_CONTENT }
         }
         // Idle, the strip lets every click through to the app underneath. It only becomes
         // touchable once a drag has started, which is when it needs to catch things.
-        lp.flags = if (s == State.IDLE) lp.flags or WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE
+        lp.flags = if (s == State.IDLE && !pillShown) lp.flags or WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE
         else lp.flags and WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE.inv()
     }
 
@@ -273,6 +336,7 @@ class ShelfWindow(
         setWindow(State.OPEN)
         refreshItems(animateNew = false)
         panel.visibility = View.VISIBLE
+        pillSpring.animateTo(0f)
         root.setPulsing(true)
         glowSpring.animateTo(1f, Motion.OPEN_K, Motion.OPEN_Z)
         openSpring.animateTo(1f, Motion.OPEN_K, Motion.OPEN_Z)
@@ -289,6 +353,8 @@ class ShelfWindow(
             panel.visibility = View.GONE
             state = if (dragActive) State.SENSING else State.IDLE
             setWindow(state)
+            pillWasShown = pillShown
+            updatePill()
             if (!dragActive) root.setPulsing(false)
         }
     }
@@ -328,6 +394,7 @@ class ShelfWindow(
         droppedThisDrag = false
         keepHovers = 0
         if (state == State.IDLE) {
+            pillSpring.animateTo(0f)
             state = State.SENSING
             setWindow(State.SENSING)
             root.setPulsing(true)
@@ -352,6 +419,8 @@ class ShelfWindow(
                 glowSpring.animateTo(0f, Motion.CLOSE_K, Motion.CLOSE_Z) {
                     if (state == State.IDLE) {
                         setWindow(State.IDLE)
+                        pillWasShown = pillShown
+                        updatePill()
                         root.setPulsing(false)
                     }
                 }
@@ -518,6 +587,7 @@ class ShelfWindow(
         if (animateNew && state == State.OPEN) fresh.forEach { it.landIn() }
         grid.children().forEach { it.invalidate() }
         if (!main.hasCallbacks(statusReset)) showDefaultStatus()
+        updatePill()
     }
 
     private fun ViewGroup.children(): List<View> = (0 until childCount).map { getChildAt(it) }
@@ -618,7 +688,7 @@ class ShelfWindow(
     fun destroy() {
         ShelfStore.removeListener(storeListener)
         main.removeCallbacksAndMessages(null)
-        openSpring.cancel(); glowSpring.cancel(); hotSpring.cancel()
+        openSpring.cancel(); glowSpring.cancel(); hotSpring.cancel(); pillSpring.cancel(); pillHoverSpring.cancel()
         kidSprings.values.forEach { it.cancel() }
         root.setPulsing(false)
         if (attached) try { wm.removeViewImmediate(root) } catch (_: Exception) {}

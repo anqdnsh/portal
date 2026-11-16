@@ -17,8 +17,8 @@ android {
         applicationId = "tech.atelier.portal"
         minSdk = 33
         targetSdk = 36
-        versionCode = 7
-        versionName = "0.4.3"
+        versionCode = 8
+        versionName = "0.4.4"
     }
 
     signingConfigs {

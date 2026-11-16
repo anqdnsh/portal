@@ -36,5 +36,8 @@ object Prefs {
     /** Off by default: the shelf stays open until you put it away. */
     fun closeOnOutside(ctx: Context): Boolean = of(ctx).getBoolean("close_outside", false)
 
+    /** A small handle at the top centre while the shelf is put away and has items. Click it to bring the shelf back. */
+    fun showPill(ctx: Context): Boolean = of(ctx).getBoolean("pill", true)
+
     fun setBool(ctx: Context, key: String, v: Boolean) = of(ctx).edit().putBoolean(key, v).apply()
 }

@@ -8,15 +8,16 @@ frosted shelf springs down out of the notch. Drop to keep it. Drag it out to any
 ## Using it
 
 - **Open:** drag to the top centre · hold Shift while dragging · jiggle the pointer left-right while dragging · Ctrl + Alt + Space
-- **Close:** it stays open until you put it away: the arrow at the top of the shelf · Esc · Ctrl + Alt + Space.
-  (Settings has "Close when I click elsewhere" if you prefer that.)
+- **Put away:** push the shelf's top edge up (it follows the pointer back into the notch) · the arrow · Esc · Ctrl + Alt + Space.
+  It never closes on its own unless you turn on "Close when I click elsewhere".
+- **Bring back:** click the small handle at the top centre (shown while the shelf has items) · Ctrl + Alt + Space.
 - **Keep:** drop anywhere on the shelf. Items survive restarts.
 - **Drag out:** press and pull an item (mouse), or long-press then drag (finger). Select several first to drag them together.
 - **Quick actions** (drop onto one, or click it to run on the selected items):
   1. Quick Share
   2. Compress to ZIP (the zip lands back on the shelf)
   3. Your choice in settings: Share to other apps (default), Convert images to JPG, Merge PDFs, or Copy text and links
-- **Remove / pin:** right-click an item, or tap the bin, then use the × or the pin on each item. Tap the bin again to clear everything that isn't pinned.
+- **Remove:** drag an item onto the bin. **Pin / remove several:** right-click an item, or tap the bin, then use the × or the pin on each item. Tap the bin again to clear everything that isn't pinned.
 - **Send to Portal:** from any app's share menu ("Keep in Portal").
 
 ## Setup

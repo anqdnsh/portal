@@ -41,6 +41,9 @@ class Spring(
         }
     }
 
+    /** Hand over the speed a finger or flick had, so the spring carries it on. Units: value per second. */
+    fun setVelocity(v: Float) { velocity = v }
+
     fun snapTo(v: Float) {
         cancel()
         value = v
