@@ -1,0 +1,5 @@
+<resources>
+    <string name="app_name">PORTAL</string>
+    <string name="share_label">Keep in Portal</string>
+    <string name="a11y_description">Puts the Portal shelf in the bottom-left corner and lets you open it with Shift while dragging, or Ctrl + Alt + Space. Portal only listens for those keys. It does not read what is on your screen.</string>
+</resources>

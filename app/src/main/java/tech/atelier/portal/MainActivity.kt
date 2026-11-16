@@ -1,232 +1,220 @@
 package tech.atelier.portal
 
+import android.app.Activity
 import android.content.Intent
-import android.content.ClipData
-import android.view.View
+import android.graphics.Typeface
+import android.graphics.drawable.GradientDrawable
 import android.net.Uri
 import android.os.Bundle
 import android.provider.Settings
-import android.provider.OpenableColumns
-import androidx.activity.ComponentActivity
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.compose.setContent
-import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
-import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.Add
-import androidx.compose.material.icons.outlined.Description
-import androidx.compose.material.icons.outlined.DeleteOutline
-import androidx.compose.material.icons.outlined.FolderOpen
-import androidx.compose.material.icons.outlined.Layers
-import androidx.compose.material.icons.outlined.OpenInNew
-import androidx.compose.material.icons.outlined.Widgets
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalView
-import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
+import android.util.TypedValue
+import android.view.Gravity
+import android.view.View
+import android.view.ViewGroup
+import android.widget.Button
+import android.widget.LinearLayout
+import android.widget.RadioButton
+import android.widget.RadioGroup
+import android.widget.ScrollView
+import android.widget.Switch
+import android.widget.TextView
+import tech.atelier.portal.core.Prefs
+import tech.atelier.portal.core.ShelfStore
+import tech.atelier.portal.host.PortalHost
+import tech.atelier.portal.host.PortalOverlayService
+import tech.atelier.portal.ui.Palette
+import tech.atelier.portal.ui.dpi
 
-private val Ink = Color(0xFF101216)
-private val Panel = Color(0xFF191D24)
-private val Raised = Color(0xFF252B35)
-private val Accent = Color(0xFF4D8DFF)
-private val Muted = Color(0xFF929BAA)
-private val Paper = Color(0xFFF4F6FA)
+/** Settings and setup. The shelf itself lives in the corner, not here. */
+class MainActivity : Activity() {
 
+    private lateinit var pal: Palette
+    private lateinit var statusText: TextView
+    private lateinit var a11yButton: Button
+    private lateinit var overlayButton: Button
 
-
-
-class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContent { PortalApp(sharedUris = extractUris(intent)) }
+        ShelfStore.init(this)
+        pal = Palette.of(this)
+        window.statusBarColor = 0
+        window.navigationBarColor = 0
+        setContentView(build())
     }
 
-    override fun onNewIntent(intent: Intent) {
-        super.onNewIntent(intent)
-        setIntent(intent)
-        setContent { PortalApp(sharedUris = extractUris(intent)) }
-    }
-
-    private fun extractUris(source: Intent?): List<Uri> {
-        if (source == null) return emptyList()
-        val result = mutableListOf<Uri>()
-        source.data?.let(result::add)
-        source.clipData?.let { clip -> for (i in 0 until clip.itemCount) clip.getItemAt(i).uri?.let(result::add) }
-        if (source.action == Intent.ACTION_SEND_MULTIPLE) {
-            @Suppress("DEPRECATION")
-            val streams = source.getParcelableArrayListExtra<Uri>(Intent.EXTRA_STREAM)
-            streams?.let(result::addAll)
-        } else if (android.os.Build.VERSION.SDK_INT >= 33) {
-            source.getParcelableExtra(Intent.EXTRA_STREAM, Uri::class.java)?.let(result::add)
-        } else {
-            @Suppress("DEPRECATION")
-            (source.getParcelableExtra<Uri>(Intent.EXTRA_STREAM))?.let(result::add)
-        }
-        return result.distinct()
-    }
-}
-
-@Composable
-private fun PortalApp(sharedUris: List<Uri>) {
-    val context = LocalContext.current
-    val rootView = LocalView.current
-    var files by remember { mutableStateOf(FileShelf.all(context)) }
-    var overlayEnabled by remember { mutableStateOf(Settings.canDrawOverlays(context)) }
-    fun refresh() { files = FileShelf.all(context) }
-    val overlaySettings = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) {
-        overlayEnabled = Settings.canDrawOverlays(context)
-        if (overlayEnabled) {
-            val i = Intent(context, PortalOverlayService::class.java)
-            if (android.os.Build.VERSION.SDK_INT >= 26) context.startForegroundService(i) else context.startService(i)
-        }
-    }
-    fun toggleOverlay() {
-        if (overlayEnabled) {
-            context.stopService(Intent(context, PortalOverlayService::class.java))
-            overlayEnabled = false
-        } else if (Settings.canDrawOverlays(context)) {
-            val i = Intent(context, PortalOverlayService::class.java)
-            if (android.os.Build.VERSION.SDK_INT >= 26) context.startForegroundService(i) else context.startService(i)
-            overlayEnabled = true
-        } else overlaySettings.launch(Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:" + context.packageName)))
-    }
-    LaunchedEffect(sharedUris) {
-        if (sharedUris.isNotEmpty()) FileShelf.importUris(context, sharedUris)
-        refresh()
-    }
-    DisposableEffect(Unit) {
-        val prefs = context.getSharedPreferences("portal_shelf", 0)
-        val listener = android.content.SharedPreferences.OnSharedPreferenceChangeListener { _, _ -> refresh() }
-        prefs.registerOnSharedPreferenceChangeListener(listener)
-        onDispose { prefs.unregisterOnSharedPreferenceChangeListener(listener) }
-    }
-    val picker = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris ->
-        if (uris.isNotEmpty()) FileShelf.importUris(context, uris)
+    override fun onResume() {
+        super.onResume()
         refresh()
     }
 
-    MaterialTheme(colorScheme = darkColorScheme(primary = Accent, onPrimary = Ink, background = Ink, surface = Panel, onSurface = Paper, secondary = Muted)) {
-        Surface(Modifier.fillMaxSize(), color = Ink) {
-            Column(Modifier.fillMaxSize().padding(24.dp), verticalArrangement = Arrangement.spacedBy(20.dp)) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Box(Modifier.size(40.dp).background(Raised, RoundedCornerShape(13.dp)), contentAlignment = Alignment.Center) {
-                        Icon(Icons.Outlined.Layers, null, tint = Accent)
-                    }
-                    Spacer(Modifier.width(12.dp))
-                    Column {
-                        Text("PORTAL", color = Paper, fontWeight = FontWeight.Bold, letterSpacing = 2.5.sp)
-                        Text("BY ATELIER TECH", color = Muted, fontSize = 9.sp, letterSpacing = 1.5.sp)
-                    }
-                    Spacer(Modifier.weight(1f))
-                    Text("0.3 BETA", color = Accent, fontSize = 10.sp)
-                }
-                Card(colors = CardDefaults.cardColors(containerColor = Panel), shape = RoundedCornerShape(24.dp), modifier = Modifier.fillMaxWidth()) {
-                    Column(Modifier.padding(22.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
-                        Text("A SPACE FOR YOUR FILES", color = Accent, fontSize = 10.sp, letterSpacing = 1.7.sp, fontWeight = FontWeight.Bold)
-                        Text("Gather.\nMove. Continue.", color = Paper, fontSize = 34.sp, lineHeight = 38.sp, fontWeight = FontWeight.Medium)
-                        Text("Collect files from your device or send them to PORTAL from another app.", color = Muted, fontSize = 14.sp, lineHeight = 20.sp)
-                        Button(onClick = { picker.launch(arrayOf("*/*")) }, modifier = Modifier.fillMaxWidth().height(50.dp), shape = RoundedCornerShape(14.dp), colors = ButtonDefaults.buttonColors(containerColor = Accent, contentColor = Ink)) {
-                            Icon(Icons.Outlined.Add, null)
-                            Spacer(Modifier.width(8.dp))
-                            Text("Add files to shelf", fontWeight = FontWeight.SemiBold)
-                        }
-                        Text("${files.size} FILES IN YOUR SHELF", color = Muted, fontSize = 10.sp, letterSpacing = 1.2.sp)
-                    }
-                }
-                Card(colors = CardDefaults.cardColors(containerColor = Raised), shape = RoundedCornerShape(16.dp), modifier = Modifier.fillMaxWidth()) {
-                    Row(Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Outlined.Widgets, contentDescription = null, tint = Accent)
-                        Spacer(Modifier.width(10.dp))
-                        Column(Modifier.weight(1f)) {
-                            Text("Floating shelf", color = Paper, fontWeight = FontWeight.Medium, fontSize = 13.sp)
-                            Text(if (overlayEnabled) "Shortcut is active" else "Keep a small PORTAL tab above apps", color = Muted, fontSize = 10.sp)
-                        }
-                        TextButton(onClick = { toggleOverlay() }) {
-                            Text(if (overlayEnabled) "Turn off" else "Enable", color = Accent)
-                        }
-                    }
-                }
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Column(Modifier.weight(1f)) {
-                        Text("YOUR SHELF", color = Accent, fontSize = 10.sp, letterSpacing = 1.8.sp)
-                        Text("Collected files", color = Paper, fontSize = 22.sp, fontWeight = FontWeight.SemiBold)
-                    }
-                    if (files.isNotEmpty()) IconButton(onClick = { FileShelf.clear(context); refresh() }) { Icon(Icons.Outlined.DeleteOutline, "Clear shelf", tint = Muted) }
-                }
-                if (files.isEmpty()) {
-                    Box(Modifier.weight(1f).fillMaxWidth().background(Panel, RoundedCornerShape(20.dp)), contentAlignment = Alignment.Center) {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                            Icon(Icons.Outlined.FolderOpen, null, tint = Accent, modifier = Modifier.size(34.dp))
-                            Text("Nothing here yet", color = Paper)
-                            Text("Add files or share them to PORTAL.", color = Muted, fontSize = 12.sp)
-                        }
-                    }
-                } else {
-                    LazyColumn(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(9.dp)) {
-                        items(files, key = { it.id }) { file ->
-                            Card(colors = CardDefaults.cardColors(containerColor = Panel), shape = RoundedCornerShape(15.dp)) {
-                                Row(Modifier.fillMaxWidth().padding(start = 12.dp, end = 4.dp, top = 6.dp, bottom = 6.dp), verticalAlignment = Alignment.CenterVertically) {
-                                    Icon(Icons.Outlined.Description, null, tint = Accent)
-                                    Spacer(Modifier.width(12.dp))
-                                    Column(Modifier.weight(1f).clickable {
-                                        runCatching {
-                                            val view = Intent(Intent.ACTION_VIEW).apply {
-                                                setDataAndType(FileShelf.uri(context, file), file.mime)
-                                                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                                            }
-                                            context.startActivity(view)
-                                        }
-                                    }.pointerInput(file.id) {
-                                        detectDragGesturesAfterLongPress(
-                                            onDragStart = {
-                                                runCatching {
-                                                    val fileUri = FileShelf.uri(context, file)
-                                                    val clip = ClipData.newUri(context.contentResolver, file.displayName, fileUri)
-                                                    rootView.startDragAndDrop(clip, View.DragShadowBuilder(rootView), null,
-                                                        View.DRAG_FLAG_GLOBAL or View.DRAG_FLAG_GLOBAL_URI_READ)
-                                                }
-                                            },
-                                            onDrag = { change, _ -> change.consume() }
-                                        )
-                                    }.padding(vertical = 8.dp)) {
-                                        Text(file.displayName, color = Paper, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                                        Text(file.mime, color = Muted, fontSize = 10.sp)
-                                    }
-                                    IconButton(onClick = {
-                                        val send = Intent(Intent.ACTION_SEND).apply {
-                                            type = file.mime ?: "*/*"
-                                            putExtra(Intent.EXTRA_STREAM, FileShelf.uri(context, file))
-                                            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                                        }
-                                        context.startActivity(Intent.createChooser(send, "Share from PORTAL"))
-                                    }) { Icon(Icons.Outlined.OpenInNew, "Share file", tint = Muted) }
-                                    IconButton(onClick = { FileShelf.remove(context, file.id); refresh() }) { Icon(Icons.Outlined.DeleteOutline, "Remove", tint = Muted) }
-                                }
-                            }
-                        }
-                    }
-                }
-                HorizontalDivider(color = Raised)
-                Row {
-                    Text("ATELIER TECH", color = Muted, fontSize = 9.sp, letterSpacing = 1.5.sp)
-                    Spacer(Modifier.weight(1f))
-                    Text("A GATEWAY TO WHAT'S NEXT", color = Muted, fontSize = 9.sp)
-                }
-            }
+    private fun build(): View {
+        val col = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            val p = dpi(22f)
+            setPadding(p, dpi(40f), p, dpi(40f))
         }
+        col.addView(text("PORTAL", 26f, pal.text, bold = true))
+        col.addView(text("Drag anything to the bottom-left corner. Keep it. Drag it out again.", 14f, pal.sub).apply {
+            setPadding(0, dpi(6f), 0, dpi(18f))
+        })
+
+        // --- Status / setup
+        val setup = card()
+        statusText = text("", 14f, pal.text)
+        setup.addView(statusText)
+        a11yButton = button("Turn on Portal (accessibility)") {
+            startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
+        }
+        setup.addView(a11yButton)
+        setup.addView(text(
+            "Recommended. This is the only way Android lets an app see Shift and Ctrl + Alt + Space while you work in other apps. Portal only listens for keys; it doesn't read your screen.",
+            12f, pal.sub,
+        ).apply { setPadding(0, dpi(8f), 0, 0) })
+        overlayButton = button("Use without shortcuts") { startOverlayMode() }
+        setup.addView(overlayButton)
+        setup.addView(button("Open the shelf") { PortalHost.hub?.open() })
+        col.addView(setup)
+
+        // --- Third action
+        col.addView(section("Third quick action"))
+        val slots = card()
+        val group = RadioGroup(this)
+        listOf(
+            Prefs.SLOT_SHARE to "Share to other apps (default)",
+            Prefs.SLOT_CONVERT to "Convert images to JPG",
+            Prefs.SLOT_MERGE to "Merge PDFs (pages are re-drawn as images)",
+            Prefs.SLOT_COPY to "Copy text and links",
+        ).forEach { (id, label) ->
+            group.addView(RadioButton(this).apply {
+                text = label
+                setTextColor(pal.text)
+                tag = id
+                this.id = View.generateViewId()
+                isChecked = Prefs.slot3(this@MainActivity) == id
+                setOnClickListener {
+                    Prefs.setSlot3(this@MainActivity, id)
+                    PortalHost.hub?.rebuild()
+                }
+            })
+        }
+        slots.addView(group)
+        slots.addView(text("Quick Share and Compress are always the first two.", 12f, pal.sub))
+        col.addView(slots)
+
+        // --- Triggers
+        col.addView(section("Opening the shelf"))
+        val trig = card()
+        trig.addView(toggle("Drag to the bottom-left corner", Prefs.corner(this)) { Prefs.setBool(this, "corner", it) })
+        trig.addView(toggle("Hold Shift while dragging", Prefs.shiftTrigger(this)) { Prefs.setBool(this, "shift_trigger", it) })
+        trig.addView(toggle("Ctrl + Alt + Space", Prefs.hotkey(this)) { Prefs.setBool(this, "hotkey", it) })
+        trig.addView(text("Esc closes it. The pin keeps it open. Right-click (or the bin) to remove or pin items.", 12f, pal.sub).apply {
+            setPadding(0, dpi(6f), 0, 0)
+        })
+        col.addView(trig)
+
+        // --- Auto clear
+        col.addView(section("Clear old items"))
+        val clear = card()
+        val cg = RadioGroup(this)
+        listOf(0 to "Never", 24 to "After 24 hours", 168 to "After 7 days").forEach { (h, label) ->
+            cg.addView(RadioButton(this).apply {
+                text = label
+                setTextColor(pal.text)
+                this.id = View.generateViewId()
+                isChecked = Prefs.autoClearHours(this@MainActivity) == h
+                setOnClickListener {
+                    Prefs.setAutoClearHours(this@MainActivity, h)
+                    ShelfStore.applyAutoClear()
+                }
+            })
+        }
+        clear.addView(cg)
+        clear.addView(text("Pinned items are never cleared.", 12f, pal.sub))
+        col.addView(clear)
+
+        col.addView(text("Version 0.4.0", 12f, pal.sub).apply {
+            gravity = Gravity.CENTER
+            setPadding(0, dpi(18f), 0, 0)
+        })
+
+        return ScrollView(this).apply {
+            setBackgroundColor(if (pal.dark) 0xFF101113.toInt() else 0xFFF2F3F6.toInt())
+            addView(col)
+        }
+    }
+
+    private fun refresh() {
+        val a11y = isA11yOn()
+        val hosted = PortalHost.hub != null
+        statusText.text = when {
+            a11y -> "Portal is on, with keyboard shortcuts."
+            hosted -> "Portal is on, without keyboard shortcuts."
+            else -> "Portal is off. Turn it on to put the shelf in the corner."
+        }
+        a11yButton.text = if (a11y) "Accessibility settings" else "Turn on Portal (accessibility)"
+        overlayButton.visibility = if (a11y || hosted) View.GONE else View.VISIBLE
+    }
+
+    private fun isA11yOn(): Boolean {
+        val enabled = Settings.Secure.getString(contentResolver, Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES) ?: return false
+        return enabled.split(':').any { it.startsWith("$packageName/") }
+    }
+
+    private fun startOverlayMode() {
+        if (!Settings.canDrawOverlays(this)) {
+            startActivity(Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:$packageName")))
+            return
+        }
+        if (checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) != android.content.pm.PackageManager.PERMISSION_GRANTED) {
+            requestPermissions(arrayOf(android.Manifest.permission.POST_NOTIFICATIONS), 1)
+        }
+        startForegroundService(Intent(this, PortalOverlayService::class.java))
+        statusText.postDelayed({ refresh() }, 600)
+    }
+
+    // ---------- small builders ----------
+
+    private fun text(s: String, sp: Float, color: Int, bold: Boolean = false) = TextView(this).apply {
+        text = s
+        setTextSize(TypedValue.COMPLEX_UNIT_SP, sp)
+        setTextColor(color)
+        if (bold) typeface = Typeface.create(Typeface.DEFAULT, 700, false)
+    }
+
+    private fun section(s: String) = text(s.uppercase(), 11f, pal.sub, bold = true).apply {
+        letterSpacing = 0.08f
+        setPadding(dpi(4f), dpi(22f), 0, dpi(8f))
+    }
+
+    private fun card() = LinearLayout(this).apply {
+        orientation = LinearLayout.VERTICAL
+        val p = dpi(16f)
+        setPadding(p, p, p, p)
+        background = GradientDrawable().apply {
+            cornerRadius = dpi(20f).toFloat()
+            setColor(if (pal.dark) 0xFF1D1E21.toInt() else 0xFFFFFFFF.toInt())
+        }
+        layoutParams = LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT)
+    }
+
+    private fun button(label: String, onClick: () -> Unit) = Button(this).apply {
+        text = label
+        isAllCaps = false
+        setTextColor(if (pal.dark) 0xFF08101F.toInt() else 0xFFFFFFFF.toInt())
+        background = GradientDrawable().apply {
+            cornerRadius = dpi(14f).toFloat()
+            setColor(pal.accent)
+        }
+        layoutParams = LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dpi(46f)).apply { topMargin = dpi(12f) }
+        setOnClickListener { onClick() }
+    }
+
+    @Suppress("DEPRECATION")
+    private fun toggle(label: String, on: Boolean, change: (Boolean) -> Unit) = Switch(this).apply {
+        text = label
+        setTextColor(pal.text)
+        isChecked = on
+        minHeight = dpi(44f)
+        setOnCheckedChangeListener { _, v -> change(v) }
     }
 }

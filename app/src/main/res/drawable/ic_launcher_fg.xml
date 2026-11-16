@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A glowing blue quarter-circle opening from the bottom-left corner, with a small shelf card. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="108dp" android:height="108dp" android:viewportWidth="108" android:viewportHeight="108">
+    <path android:pathData="M30,78 L30,46 A32,32 0 0 1 62,78 Z">
+        <aapt:attr name="android:fillColor">
+            <gradient android:type="radial" android:centerX="30" android:centerY="78" android:gradientRadius="40"
+                android:startColor="#CC5C9BFF" android:endColor="#005C9BFF" />
+        </aapt:attr>
+    </path>
+    <path android:fillColor="#F2F4F8" android:pathData="M42,40h28a6,6 0 0 1 6,6v20a6,6 0 0 1 -6,6h-28a6,6 0 0 1 -6,-6v-20a6,6 0 0 1 6,-6z" />
+    <path android:fillColor="#5C9BFF" android:pathData="M44,46h6v6h-6z M53,46h6v6h-6z M62,46h6v6h-6z" />
+    <path android:fillColor="#9AA3B2" android:pathData="M44,57h24v3h-24z M44,63h16v3h-16z" />
+</vector>
