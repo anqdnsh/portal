@@ -54,11 +54,12 @@ import tech.atelier.portal.ui.dpi
 class PortalDrag(val ids: List<String>)
 
 /**
- * The shelf on one display. It is a single small window in the bottom-left corner that changes size:
+ * The shelf on one display. It is a single small window at the top centre of the screen (the "notch")
+ * that changes size:
  *
- *  - IDLE: a thin invisible strip on the left edge. It exists so Android tells it about every drag.
- *  - SENSING: a drag is happening somewhere. The corner glows and breathes blue.
- *  - OPEN: the shelf, sprung out of the corner.
+ *  - IDLE: a thin invisible strip along the top centre. It exists so Android tells it about every drag.
+ *  - SENSING: a drag is happening somewhere. The notch glows and breathes blue.
+ *  - OPEN: the shelf, sprung down out of the notch.
  *
  * Using one window (instead of adding a new one mid-drag) means the shelf can always receive the
  * drop that is already in progress.
@@ -129,7 +130,7 @@ class ShelfWindow(
             WindowManager.LayoutParams.FLAG_HARDWARE_ACCELERATED,
         PixelFormat.TRANSLUCENT,
     ).apply {
-        gravity = Gravity.BOTTOM or Gravity.START
+        gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL
         x = 0
         y = 0
         title = "Portal shelf"
@@ -152,8 +153,8 @@ class ShelfWindow(
         panel.setPadding(padIn, ctx.dpi(10f), padIn, ctx.dpi(10f))
         panel.visibility = View.GONE
         panel.addOnLayoutChangeListener { v, _, _, _, _, _, _, _, _ ->
-            v.pivotX = 0f
-            v.pivotY = v.height.toFloat()
+            v.pivotX = v.width / 2f
+            v.pivotY = 0f
         }
 
         // Header: title, pin, clear
@@ -211,11 +212,11 @@ class ShelfWindow(
             topMargin = ctx.dpi(6f)
         })
 
-        root.addView(panel, FrameLayout.LayoutParams(panelW, ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.BOTTOM or Gravity.START).apply {
-            leftMargin = ctx.dpi(10f)
-            bottomMargin = ctx.dpi(10f)
+        root.addView(panel, FrameLayout.LayoutParams(panelW, ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.TOP or Gravity.CENTER_HORIZONTAL).apply {
+            leftMargin = ctx.dpi(34f)
             rightMargin = ctx.dpi(34f)
-            topMargin = ctx.dpi(34f)
+            topMargin = ctx.dpi(8f)
+            bottomMargin = ctx.dpi(34f)
         })
 
         stagger.clear()
@@ -234,7 +235,7 @@ class ShelfWindow(
                 if (state == State.OPEN && !pinned && !dragActive) close()
                 true
             } else if (state != State.OPEN && e.actionMasked == MotionEvent.ACTION_UP) {
-                // Clicking the corner strip also opens the shelf.
+                // Clicking the notch strip also opens the shelf.
                 open(byDrag = false)
                 true
             } else state != State.OPEN
@@ -250,8 +251,8 @@ class ShelfWindow(
 
     private fun sizeFor(s: State) {
         when (s) {
-            State.IDLE -> { lp.width = ctx.dpi(10f); lp.height = ctx.dpi(180f) }
-            State.SENSING -> { lp.width = ctx.dpi(88f); lp.height = ctx.dpi(230f) }
+            State.IDLE -> { lp.width = ctx.dpi(180f); lp.height = ctx.dpi(8f) }
+            State.SENSING -> { lp.width = ctx.dpi(300f); lp.height = ctx.dpi(84f) }
             State.OPEN -> { lp.width = WindowManager.LayoutParams.WRAP_CONTENT; lp.height = WindowManager.LayoutParams.WRAP_CONTENT }
         }
     }
@@ -295,15 +296,15 @@ class ShelfWindow(
         }
     }
 
-    /** Panel grows out of the bottom-left corner and tucks back into it. */
+    /** Panel drops down out of the notch and tucks back up into it. */
     private fun applyOpen(p: Float) {
         val s = (0.08f + 0.92f * p).coerceAtLeast(0.04f)
         panel.scaleX = s
         panel.scaleY = s
         panel.alpha = (p * 2.2f).coerceIn(0f, 1f)
         val shift = ctx.dp(18f) * (1f - p)
-        panel.translationX = -shift
-        panel.translationY = shift
+        panel.translationX = 0f
+        panel.translationY = -shift
         root.invalidate()
     }
 
@@ -313,8 +314,7 @@ class ShelfWindow(
             val sp = kidSprings.getOrPut(v) {
                 Spring(Motion.OPEN_K, 0.72f) { t ->
                     v.alpha = t.coerceIn(0f, 1f)
-                    v.translationX = -ctx.dp(10f) * (1f - t)
-                    v.translationY = ctx.dp(10f) * (1f - t)
+                    v.translationY = -ctx.dp(10f) * (1f - t)
                 }
             }
             sp.snapTo(0f)

@@ -48,7 +48,7 @@ private fun mix(c1: Int, c2: Int, t: Float): Int {
 private fun withAlpha(c: Int, a: Float): Int = (c and 0x00FFFFFF) or ((a.coerceIn(0f, 1f) * 255).toInt() shl 24)
 
 /**
- * The window's root. Draws the breathing blue corner glow and the soft halo around the panel
+ * The window's root. Draws the breathing blue notch glow and the soft halo around the panel
  * (no border: the panel's edge is only light), then the panel itself on top.
  */
 class ShelfRoot(context: Context, val pal: Palette) : FrameLayout(context), Choreographer.FrameCallback {
@@ -114,34 +114,39 @@ class ShelfRoot(context: Context, val pal: Palette) : FrameLayout(context), Chor
         super.dispatchDraw(canvas)
     }
 
+    /** The breathing blue glow, centred on the top edge like light spilling out of a notch. */
     private fun drawCorner(c: Canvas) {
         if (glow <= 0.001f) return
         val w = width.toFloat()
         val h = height.toFloat()
-        val r = max(w, h) * 0.95f
-        val key = (r * 10).toInt()
+        val cx = w / 2f
+        val r = max(w * 0.6f, h) * 0.95f
+        val key = (r * 10).toInt() + w.toInt() * 100000
         if (shaderFor != key) {
             shaderFor = key
             cornerPaint.shader = RadialGradient(
-                0f, h, r,
+                cx, 0f, r,
                 intArrayOf(withAlpha(pal.glow, 0.62f), withAlpha(pal.glow, 0.20f), withAlpha(pal.glow, 0f)),
                 floatArrayOf(0f, 0.5f, 1f), Shader.TileMode.CLAMP,
             )
-            edgePaint.shader = LinearGradient(0f, h, 0f, h - min(h, context.dp(200f)),
-                withAlpha(pal.accent, 1f), withAlpha(pal.accent, 0f), Shader.TileMode.CLAMP)
+            val half = min(w / 2f, context.dp(110f))
+            edgePaint.shader = LinearGradient(cx - half, 0f, cx + half, 0f,
+                intArrayOf(withAlpha(pal.accent, 0f), withAlpha(pal.accent, 1f), withAlpha(pal.accent, 0f)),
+                floatArrayOf(0f, 0.5f, 1f), Shader.TileMode.CLAMP)
             edgePaint.setShadowLayer(context.dp(8f), 0f, 0f, withAlpha(pal.glow, 0.9f))
         }
         val breath = 0.72f + 0.28f * pulse
         val level = (glow * breath + hot * 0.25f).coerceIn(0f, 1f)
         val scale = 0.55f + 0.45f * glow + 0.06f * pulse * glow
         c.save()
-        c.scale(scale, scale, 0f, h)
+        c.scale(scale, scale, cx, 0f)
         cornerPaint.alpha = (level * 255).toInt()
-        c.drawCircle(0f, h, r, cornerPaint)
+        c.drawCircle(cx, 0f, r, cornerPaint)
         c.restore()
         edgePaint.alpha = (min(1f, glow * 1.2f) * (0.55f + 0.45f * pulse) * 255).toInt()
-        val x = context.dp(1.5f)
-        c.drawLine(x, h - context.dp(4f), x, h - min(h, context.dp(200f)), edgePaint)
+        val y = context.dp(1.5f)
+        val half = min(w / 2f, context.dp(110f))
+        c.drawLine(cx - half, y, cx + half, y, edgePaint)
     }
 
     private fun drawHalo(c: Canvas) {

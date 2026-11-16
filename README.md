@@ -2,12 +2,12 @@
 
 A drag-and-drop shelf for Android, made for Samsung DeX and good on any tablet. Like Shelf on the Mac.
 
-Drag anything toward the **bottom-left corner** (or hold **Shift** while dragging) and a small frosted
-shelf springs out of the corner. Drop to keep it. Drag it out to any app later.
+Drag anything to the **top centre of the screen** (the notch), or hold **Shift** while dragging, and a small
+frosted shelf springs down out of the notch. Drop to keep it. Drag it out to any app later.
 
 ## Using it
 
-- **Open:** drag into the bottom-left corner · hold Shift while dragging · Ctrl + Alt + Space · tap the corner
+- **Open:** drag to the top centre · hold Shift while dragging · Ctrl + Alt + Space · tap the top centre
 - **Close:** click anywhere else · Esc. The pin keeps it open.
 - **Keep:** drop anywhere on the shelf. Items survive restarts.
 - **Drag out:** press and pull an item (mouse), or long-press then drag (finger). Select several first to drag them together.
@@ -29,15 +29,19 @@ Prefer not to? **Use without shortcuts** runs the same shelf as a normal overlay
 ## How it's built
 
 - Plain Android framework + Kotlin, no libraries (same approach as OrbitSearch). minSdk 33.
-- One small window in the corner changes size: an invisible strip → a glowing corner while any drag
+- One small window at the top centre changes size: an invisible strip → a glowing notch while any drag
   is happening → the open shelf. Keeping it one window means it can always catch a drag that's
   already in progress.
 - Every animation is a real spring stepped each display frame (120 Hz where the screen supports it),
-  so motion can reverse mid-way without jumping. The shelf grows out of the corner and goes back into it.
+  so motion can reverse mid-way without jumping. The shelf drops out of the notch and goes back up into it.
 - Drops use Android's own drop-permission handling (`OnReceiveContentListener`), and files go back out
   through Portal's private, read-only content provider.
 
 ## Known limits
+
+- **The trigger strip** is a thin (8 dp) invisible bar at the top centre. Clicks on that exact sliver open
+  the shelf instead of reaching the window underneath. (It moved here from the bottom-left in 0.4.1,
+  where it set off DeX multitasking.)
 
 - **Blur:** Android only offers background blur to full app windows, not small floating ones like
   this, so the shelf is a frosted charcoal/white tint with fine grain instead of a live blur.

@@ -27,7 +27,7 @@ object Prefs {
     /** Ctrl + Alt + Space toggles the shelf. */
     fun hotkey(ctx: Context): Boolean = of(ctx).getBoolean("hotkey", true)
 
-    /** Drag toward the bottom-left corner to open the shelf. */
+    /** Drag to the top centre of the screen (the notch) to open the shelf. Key kept as "corner" from 0.4.0. */
     fun corner(ctx: Context): Boolean = of(ctx).getBoolean("corner", true)
 
     fun setBool(ctx: Context, key: String, v: Boolean) = of(ctx).edit().putBoolean(key, v).apply()

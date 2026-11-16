@@ -25,7 +25,7 @@ import tech.atelier.portal.host.PortalOverlayService
 import tech.atelier.portal.ui.Palette
 import tech.atelier.portal.ui.dpi
 
-/** Settings and setup. The shelf itself lives in the corner, not here. */
+/** Settings and setup. The shelf itself lives at the top centre of the screen, not here. */
 class MainActivity : Activity() {
 
     private lateinit var pal: Palette
@@ -54,7 +54,7 @@ class MainActivity : Activity() {
             setPadding(p, dpi(40f), p, dpi(40f))
         }
         col.addView(text("PORTAL", 26f, pal.text, bold = true))
-        col.addView(text("Drag anything to the bottom-left corner. Keep it. Drag it out again.", 14f, pal.sub).apply {
+        col.addView(text("Drag anything to the top centre of the screen. Keep it. Drag it out again.", 14f, pal.sub).apply {
             setPadding(0, dpi(6f), 0, dpi(18f))
         })
 
@@ -104,7 +104,7 @@ class MainActivity : Activity() {
         // --- Triggers
         col.addView(section("Opening the shelf"))
         val trig = card()
-        trig.addView(toggle("Drag to the bottom-left corner", Prefs.corner(this)) { Prefs.setBool(this, "corner", it) })
+        trig.addView(toggle("Drag to the top centre (the notch)", Prefs.corner(this)) { Prefs.setBool(this, "corner", it) })
         trig.addView(toggle("Hold Shift while dragging", Prefs.shiftTrigger(this)) { Prefs.setBool(this, "shift_trigger", it) })
         trig.addView(toggle("Ctrl + Alt + Space", Prefs.hotkey(this)) { Prefs.setBool(this, "hotkey", it) })
         trig.addView(text("Esc closes it. The pin keeps it open. Right-click (or the bin) to remove or pin items.", 12f, pal.sub).apply {
@@ -132,7 +132,7 @@ class MainActivity : Activity() {
         clear.addView(text("Pinned items are never cleared.", 12f, pal.sub))
         col.addView(clear)
 
-        col.addView(text("Version 0.4.0", 12f, pal.sub).apply {
+        col.addView(text("Version 0.4.1", 12f, pal.sub).apply {
             gravity = Gravity.CENTER
             setPadding(0, dpi(18f), 0, 0)
         })
@@ -149,7 +149,7 @@ class MainActivity : Activity() {
         statusText.text = when {
             a11y -> "Portal is on, with keyboard shortcuts."
             hosted -> "Portal is on, without keyboard shortcuts."
-            else -> "Portal is off. Turn it on to put the shelf in the corner."
+            else -> "Portal is off. Turn it on to put the shelf at the top of the screen."
         }
         a11yButton.text = if (a11y) "Accessibility settings" else "Turn on Portal (accessibility)"
         overlayButton.visibility = if (a11y || hosted) View.GONE else View.VISIBLE

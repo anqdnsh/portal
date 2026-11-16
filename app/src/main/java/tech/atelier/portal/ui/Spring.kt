@@ -90,7 +90,7 @@ object Motion {
     // Opening: lively, ~5% overshoot, settles in about 0.4 s.
     const val OPEN_K = 260f
     const val OPEN_Z = 0.68f
-    // Closing: firm and critically damped, so it tucks back into the corner without bouncing out.
+    // Closing: firm and critically damped, so it tucks back into the notch without bouncing out.
     const val CLOSE_K = 420f
     const val CLOSE_Z = 1f
     // Small things (hover, press, a new item landing).

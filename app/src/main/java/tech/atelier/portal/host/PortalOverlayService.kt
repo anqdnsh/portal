@@ -16,7 +16,7 @@ import tech.atelier.portal.core.ShelfStore
 
 /**
  * Fallback for people who don't want to turn on the accessibility service.
- * The corner and the shelf work the same; keyboard shortcuts don't (Android doesn't allow it).
+ * The notch and the shelf work the same; keyboard shortcuts don't (Android doesn't allow it).
  */
 class PortalOverlayService : Service() {
 
@@ -63,7 +63,7 @@ class PortalOverlayService : Service() {
         return Notification.Builder(this, "portal")
             .setSmallIcon(tech.atelier.portal.R.drawable.ic_stat_portal)
             .setContentTitle("Portal is ready")
-            .setContentText("Drag anything to the bottom-left corner")
+            .setContentText("Drag anything to the top centre of the screen")
             .setContentIntent(open)
             .setOngoing(true)
             .build()
