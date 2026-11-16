@@ -234,11 +234,7 @@ class ShelfWindow(
             if (e.actionMasked == MotionEvent.ACTION_OUTSIDE) {
                 if (state == State.OPEN && !pinned && !dragActive) close()
                 true
-            } else if (state != State.OPEN && e.actionMasked == MotionEvent.ACTION_UP) {
-                // Clicking the notch strip also opens the shelf.
-                open(byDrag = false)
-                true
-            } else state != State.OPEN
+            } else false
         }
     }
 
@@ -255,6 +251,10 @@ class ShelfWindow(
             State.SENSING -> { lp.width = ctx.dpi(300f); lp.height = ctx.dpi(84f) }
             State.OPEN -> { lp.width = WindowManager.LayoutParams.WRAP_CONTENT; lp.height = WindowManager.LayoutParams.WRAP_CONTENT }
         }
+        // Idle, the strip lets every click through to the app underneath. It only becomes
+        // touchable once a drag has started, which is when it needs to catch things.
+        lp.flags = if (s == State.IDLE) lp.flags or WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE
+        else lp.flags and WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE.inv()
     }
 
     private fun setWindow(s: State) {
@@ -326,6 +326,7 @@ class ShelfWindow(
 
     /** Called for every drag that starts anywhere on this display, including drags out of Portal. */
     private fun onAnyDragStart() {
+        PortalHost.lastDragAt = System.currentTimeMillis()
         dragActive = true
         droppedThisDrag = false
         keepHovers = 0
@@ -334,6 +335,11 @@ class ShelfWindow(
             setWindow(State.SENSING)
             root.setPulsing(true)
             glowSpring.animateTo(0.75f, Motion.OPEN_K, Motion.OPEN_Z)
+        }
+        // Shift or a jiggle came a moment before Android told us about the drag: open now.
+        if (System.currentTimeMillis() < pendingOpenUntil) {
+            pendingOpenUntil = 0L
+            if (state != State.OPEN) open(byDrag = true)
         }
     }
 
@@ -357,9 +363,27 @@ class ShelfWindow(
         }
     }
 
-    /** Shift pressed while something is being dragged. */
-    fun shiftPressed() {
-        if (dragActive && state != State.OPEN) open(byDrag = true)
+    private var pendingOpenUntil = 0L
+    private var lastProbe = 0L
+
+    /**
+     * Shift or a jiggle while dragging. If this window already knows about the drag, open.
+     * If not, put the (invisible) window back on screen: Android tells a window that appears
+     * mid-drag about that drag, and [onAnyDragStart] then opens the shelf.
+     */
+    fun requestOpenDuringDrag() {
+        if (state == State.OPEN) return
+        if (dragActive) { open(byDrag = true); return }
+        val now = System.currentTimeMillis()
+        pendingOpenUntil = now + 900L
+        if (now - lastProbe < 400L || !attached) return
+        lastProbe = now
+        try {
+            wm.removeViewImmediate(root)
+            wm.addView(root, lp)
+        } catch (_: Exception) {
+            attached = try { wm.addView(root, lp); true } catch (_: Exception) { false }
+        }
     }
 
     private val rootDrag = View.OnDragListener { _, e ->

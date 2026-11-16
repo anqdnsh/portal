@@ -65,7 +65,15 @@ class ShelfHub(
     val dragActive get() = windows.values.any { it.dragActive }
     val anyOpen get() = windows.values.any { it.isOpen }
 
-    fun onShift() = windows.values.forEach { it.shiftPressed() }
+    /** Shift (any screen) or a jiggle on [displayId] while dragging. */
+    fun requestOpenDuringDrag(displayId: Int? = null) {
+        val active = windows.values.filter { it.dragActive }
+        when {
+            active.isNotEmpty() -> active.forEach { it.requestOpenDuringDrag() }
+            displayId != null && windows[displayId] != null -> windows[displayId]!!.requestOpenDuringDrag()
+            else -> windows.values.forEach { it.requestOpenDuringDrag() }
+        }
+    }
 
     fun closeAll() = windows.values.forEach { it.close() }
 
@@ -89,4 +97,11 @@ class ShelfHub(
 /** Whichever host is running (accessibility service preferred), so other screens can reach the shelf. */
 object PortalHost {
     var hub: ShelfHub? = null
+
+    // What Portal has noticed, shown in settings so you can see which triggers reach it.
+    @Volatile var lastDragAt = 0L
+    @Volatile var lastShiftAt = 0L
+    @Volatile var lastMouseAt = 0L
+    @Volatile var lastJiggleAt = 0L
+    @Volatile var mouseWatch = false
 }

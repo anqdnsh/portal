@@ -3,8 +3,11 @@ package tech.atelier.portal.host
 import android.accessibilityservice.AccessibilityService
 import android.content.Intent
 import android.content.res.Configuration
+import android.os.Build
 import android.os.Handler
 import android.os.Looper
+import android.view.InputDevice
+import android.view.MotionEvent
 import android.view.Display
 import android.view.KeyEvent
 import android.view.WindowManager
@@ -40,6 +43,48 @@ class PortalAccessibilityService : AccessibilityService() {
         hub = h
         PortalHost.hub = h
         h.start()
+        watchMouse()
+    }
+
+    // ---------- mouse: knowing when a button is held, and spotting a jiggle ----------
+
+    private var mouseDown = false
+    private val shake by lazy { ShakeDetector(resources.displayMetrics.density) }
+
+    /**
+     * Android 15+ lets an accessibility service watch mouse movement without taking it away
+     * from apps. Portal uses that only to notice a held button and a left-right jiggle.
+     */
+    private fun watchMouse() {
+        PortalHost.mouseWatch = false
+        if (Build.VERSION.SDK_INT < 35) return
+        try {
+            val info = serviceInfo ?: return
+            info.motionEventSources = InputDevice.SOURCE_MOUSE
+            info.setObservedMotionEventSources(InputDevice.SOURCE_MOUSE)
+            serviceInfo = info
+            PortalHost.mouseWatch = true
+        } catch (_: Throwable) {
+            PortalHost.mouseWatch = false
+        }
+    }
+
+    override fun onMotionEvent(event: MotionEvent) {
+        PortalHost.lastMouseAt = System.currentTimeMillis()
+        when (event.actionMasked) {
+            MotionEvent.ACTION_DOWN, MotionEvent.ACTION_BUTTON_PRESS -> { mouseDown = true; shake.reset() }
+            MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL, MotionEvent.ACTION_BUTTON_RELEASE -> {
+                if (event.buttonState == 0) { mouseDown = false; shake.reset() }
+            }
+            MotionEvent.ACTION_MOVE -> {
+                if (event.buttonState != 0) mouseDown = true
+                if (mouseDown && Prefs.jiggle(this) && shake.feed(event.rawX, event.eventTime)) {
+                    PortalHost.lastJiggleAt = System.currentTimeMillis()
+                    val d = event.displayId
+                    main.post { hub?.requestOpenDuringDrag(d) }
+                }
+            }
+        }
     }
 
     override fun onKeyEvent(event: KeyEvent): Boolean {
@@ -47,8 +92,12 @@ class PortalAccessibilityService : AccessibilityService() {
         val down = event.action == KeyEvent.ACTION_DOWN
         when (event.keyCode) {
             KeyEvent.KEYCODE_SHIFT_LEFT, KeyEvent.KEYCODE_SHIFT_RIGHT -> {
-                if (down && event.repeatCount == 0 && Prefs.shiftTrigger(this) && h.dragActive) {
-                    main.post { h.onShift() }
+                if (down && event.repeatCount == 0 && Prefs.shiftTrigger(this)) {
+                    PortalHost.lastShiftAt = System.currentTimeMillis()
+                    // While typing (no mouse button held) Shift is just Shift.
+                    val maybeDragging = h.dragActive || mouseDown || !PortalHost.mouseWatch ||
+                        System.currentTimeMillis() - PortalHost.lastMouseAt > 60_000L
+                    if (maybeDragging) main.post { h.requestOpenDuringDrag() }
                 }
                 return false // never swallow Shift
             }

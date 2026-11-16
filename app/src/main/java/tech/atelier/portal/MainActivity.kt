@@ -32,6 +32,7 @@ class MainActivity : Activity() {
     private lateinit var statusText: TextView
     private lateinit var a11yButton: Button
     private lateinit var overlayButton: Button
+    private lateinit var checkText: TextView
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -106,11 +107,24 @@ class MainActivity : Activity() {
         val trig = card()
         trig.addView(toggle("Drag to the top centre (the notch)", Prefs.corner(this)) { Prefs.setBool(this, "corner", it) })
         trig.addView(toggle("Hold Shift while dragging", Prefs.shiftTrigger(this)) { Prefs.setBool(this, "shift_trigger", it) })
+        trig.addView(toggle("Jiggle the pointer while dragging", Prefs.jiggle(this)) { Prefs.setBool(this, "jiggle", it) })
         trig.addView(toggle("Ctrl + Alt + Space", Prefs.hotkey(this)) { Prefs.setBool(this, "hotkey", it) })
         trig.addView(text("Esc closes it. The pin keeps it open. Right-click (or the bin) to remove or pin items.", 12f, pal.sub).apply {
             setPadding(0, dpi(6f), 0, 0)
         })
         col.addView(trig)
+
+        // --- Drag check: what Portal can actually see on this device
+        col.addView(section("Drag check"))
+        val check = card()
+        checkText = text("", 13f, pal.text)
+        check.addView(checkText)
+        check.addView(text(
+            "Drag a file somewhere, press Shift, jiggle the pointer, then come back here. Each line should update. Send a screenshot of this if a trigger doesn't work.",
+            12f, pal.sub,
+        ).apply { setPadding(0, dpi(8f), 0, 0) })
+        check.addView(button("Refresh") { refreshCheck() })
+        col.addView(check)
 
         // --- Auto clear
         col.addView(section("Clear old items"))
@@ -132,7 +146,7 @@ class MainActivity : Activity() {
         clear.addView(text("Pinned items are never cleared.", 12f, pal.sub))
         col.addView(clear)
 
-        col.addView(text("Version 0.4.1", 12f, pal.sub).apply {
+        col.addView(text("Version 0.4.2", 12f, pal.sub).apply {
             gravity = Gravity.CENTER
             setPadding(0, dpi(18f), 0, 0)
         })
@@ -153,6 +167,33 @@ class MainActivity : Activity() {
         }
         a11yButton.text = if (a11y) "Accessibility settings" else "Turn on Portal (accessibility)"
         overlayButton.visibility = if (a11y || hosted) View.GONE else View.VISIBLE
+        refreshCheck()
+    }
+
+    private fun ago(t: Long): String {
+        if (t == 0L) return "not yet"
+        val s = (System.currentTimeMillis() - t) / 1000
+        return when {
+            s < 60 -> "${s}s ago"
+            s < 3600 -> "${s / 60} min ago"
+            else -> "${s / 3600} h ago"
+        }
+    }
+
+    private fun refreshCheck() {
+        val a11y = isA11yOn()
+        val mouse = when {
+            !a11y -> "needs the accessibility switch"
+            android.os.Build.VERSION.SDK_INT < 35 -> "needs Android 15 or later"
+            !PortalHost.mouseWatch -> "not available on this device"
+            else -> "last movement " + ago(PortalHost.lastMouseAt)
+        }
+        checkText.text = buildString {
+            append("Drag seen: ").append(ago(PortalHost.lastDragAt)).append('\n')
+            append("Shift seen: ").append(if (a11y) ago(PortalHost.lastShiftAt) else "needs the accessibility switch").append('\n')
+            append("Pointer: ").append(mouse).append('\n')
+            append("Jiggle seen: ").append(ago(PortalHost.lastJiggleAt))
+        }
     }
 
     private fun isA11yOn(): Boolean {

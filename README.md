@@ -7,7 +7,7 @@ frosted shelf springs down out of the notch. Drop to keep it. Drag it out to any
 
 ## Using it
 
-- **Open:** drag to the top centre · hold Shift while dragging · Ctrl + Alt + Space · tap the top centre
+- **Open:** drag to the top centre · hold Shift while dragging · jiggle the pointer left-right while dragging · Ctrl + Alt + Space
 - **Close:** click anywhere else · Esc. The pin keeps it open.
 - **Keep:** drop anywhere on the shelf. Items survive restarts.
 - **Drag out:** press and pull an item (mouse), or long-press then drag (finger). Select several first to drag them together.
@@ -39,9 +39,11 @@ Prefer not to? **Use without shortcuts** runs the same shelf as a normal overlay
 
 ## Known limits
 
-- **The trigger strip** is a thin (8 dp) invisible bar at the top centre. Clicks on that exact sliver open
-  the shelf instead of reaching the window underneath. (It moved here from the bottom-left in 0.4.1,
-  where it set off DeX multitasking.)
+- **The trigger strip** is a thin invisible bar at the top centre. It ignores clicks and only wakes up
+  while something is being dragged. (It moved here from the bottom-left in 0.4.1, where it set off DeX
+  multitasking.)
+- **Jiggle** needs the accessibility switch, Android 15 or later, and a mouse or touchpad.
+- **Settings → Drag check** shows which triggers Portal can actually see on your device.
 
 - **Blur:** Android only offers background blur to full app windows, not small floating ones like
   this, so the shelf is a frosted charcoal/white tint with fine grain instead of a live blur.

@@ -30,5 +30,8 @@ object Prefs {
     /** Drag to the top centre of the screen (the notch) to open the shelf. Key kept as "corner" from 0.4.0. */
     fun corner(ctx: Context): Boolean = of(ctx).getBoolean("corner", true)
 
+    /** Jiggle the pointer left and right while dragging to open the shelf. */
+    fun jiggle(ctx: Context): Boolean = of(ctx).getBoolean("jiggle", true)
+
     fun setBool(ctx: Context, key: String, v: Boolean) = of(ctx).edit().putBoolean(key, v).apply()
 }
