@@ -71,5 +71,7 @@ jobs:
           APK=$(ls app/build/outputs/apk/release/*.apk | head -1)
           cp "$APK" PORTAL.apk
           TAG="v$(grep versionName app/build.gradle.kts | sed -E 's/.*"(.*)".*/\1/')"
-          gh release view "$TAG" >/dev/null 2>&1 || gh release create "$TAG" --title "PORTAL $TAG" --notes "Built from ${GITHUB_SHA::7}" --latest
+          git tag -f "$TAG" "$GITHUB_SHA"
+          git push -f origin "refs/tags/$TAG"
+          gh release view "$TAG" >/dev/null 2>&1 || gh release create "$TAG" --verify-tag --title "PORTAL $TAG" --notes "Download PORTAL.apk below and open it on your device." --latest
           gh release upload "$TAG" PORTAL.apk --clobber
