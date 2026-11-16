@@ -69,6 +69,11 @@ class ShelfRoot(context: Context, val pal: Palette) : FrameLayout(context), Chor
         strokeWidth = context.dp(3f)
     }
     private val haloPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = pal.glow }
+    private val edgeSoft = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        style = Paint.Style.STROKE
+        strokeCap = Paint.Cap.ROUND
+        strokeWidth = context.dp(5f)
+    }
     private val rect = RectF()
     private val path = Path()
     private var pulsing = false
@@ -114,39 +119,29 @@ class ShelfRoot(context: Context, val pal: Palette) : FrameLayout(context), Chor
         super.dispatchDraw(canvas)
     }
 
-    /** The breathing blue glow, centred on the top edge like light spilling out of a notch. */
+    /** The breathing blue light along the top edge, like light leaking from a notch. Just the edge, no haze. */
     private fun drawCorner(c: Canvas) {
         if (glow <= 0.001f) return
         val w = width.toFloat()
-        val h = height.toFloat()
         val cx = w / 2f
-        val r = max(w * 0.6f, h) * 0.95f
-        val key = (r * 10).toInt() + w.toInt() * 100000
+        val half = min(w / 2f - context.dp(4f), context.dp(120f))
+        val key = (half * 10).toInt()
         if (shaderFor != key) {
             shaderFor = key
-            cornerPaint.shader = RadialGradient(
-                cx, 0f, r,
-                intArrayOf(withAlpha(pal.glow, 0.62f), withAlpha(pal.glow, 0.20f), withAlpha(pal.glow, 0f)),
-                floatArrayOf(0f, 0.5f, 1f), Shader.TileMode.CLAMP,
-            )
-            val half = min(w / 2f, context.dp(110f))
-            edgePaint.shader = LinearGradient(cx - half, 0f, cx + half, 0f,
+            val g = LinearGradient(cx - half, 0f, cx + half, 0f,
                 intArrayOf(withAlpha(pal.accent, 0f), withAlpha(pal.accent, 1f), withAlpha(pal.accent, 0f)),
                 floatArrayOf(0f, 0.5f, 1f), Shader.TileMode.CLAMP)
-            edgePaint.setShadowLayer(context.dp(8f), 0f, 0f, withAlpha(pal.glow, 0.9f))
+            edgePaint.shader = g
+            edgeSoft.shader = g
         }
-        val breath = 0.72f + 0.28f * pulse
-        val level = (glow * breath + hot * 0.25f).coerceIn(0f, 1f)
-        val scale = 0.55f + 0.45f * glow + 0.06f * pulse * glow
-        c.save()
-        c.scale(scale, scale, cx, 0f)
-        cornerPaint.alpha = (level * 255).toInt()
-        c.drawCircle(cx, 0f, r, cornerPaint)
-        c.restore()
-        edgePaint.alpha = (min(1f, glow * 1.2f) * (0.55f + 0.45f * pulse) * 255).toInt()
-        val y = context.dp(1.5f)
-        val half = min(w / 2f, context.dp(110f))
-        c.drawLine(cx - half, y, cx + half, y, edgePaint)
+        val level = (glow * (0.6f + 0.4f * pulse) + hot * 0.3f).coerceIn(0f, 1f)
+        val spread = half * (0.7f + 0.3f * glow)
+        val y = context.dp(2f)
+        edgeSoft.alpha = (level * 200).toInt()
+        edgeSoft.setShadowLayer(context.dp(10f) + context.dp(6f) * pulse, 0f, 0f, withAlpha(pal.glow, 0.9f * level))
+        c.drawLine(cx - spread, y, cx + spread, y, edgeSoft)
+        edgePaint.alpha = (level * 255).toInt()
+        c.drawLine(cx - spread, y, cx + spread, y, edgePaint)
     }
 
     private fun drawHalo(c: Canvas) {
@@ -160,9 +155,9 @@ class ShelfRoot(context: Context, val pal: Palette) : FrameLayout(context), Chor
         path.addRoundRect(rect, panelRadius, panelRadius, Path.Direction.CW)
         c.clipOutPath(path)
         val a = p.alpha * (0.42f + 0.10f * pulse + 0.35f * hot)
-        haloPaint.setShadowLayer(context.dp(26f), 0f, 0f, withAlpha(pal.glow, a.coerceIn(0f, 0.95f)))
+        haloPaint.setShadowLayer(context.dp(18f), 0f, 0f, withAlpha(pal.glow, a.coerceIn(0f, 0.95f)))
         c.drawPath(path, haloPaint)
-        haloPaint.setShadowLayer(context.dp(9f), 0f, 0f, withAlpha(pal.glow, (a * 0.8f).coerceIn(0f, 0.9f)))
+        haloPaint.setShadowLayer(context.dp(6f), 0f, 0f, withAlpha(pal.glow, (a * 0.8f).coerceIn(0f, 0.9f)))
         c.drawPath(path, haloPaint)
         c.restore()
     }

@@ -42,9 +42,12 @@ class ShelfHub(
 
     /** Rebuild everything, e.g. after switching dark/light mode or folding/unfolding. */
     fun rebuild() {
+        val wasOpen = windows.filterValues { it.isOpen }.keys
         windows.values.forEach { it.destroy() }
         windows.clear()
         reconcile()
+        // Anything that was open stays open.
+        wasOpen.forEach { windows[it]?.open(byDrag = false) }
     }
 
     private fun usable(d: Display): Boolean =

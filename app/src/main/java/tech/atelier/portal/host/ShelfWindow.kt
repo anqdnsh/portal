@@ -87,7 +87,8 @@ class ShelfWindow(
 
     private var openedByDrag = false
     private var droppedThisDrag = false
-    private var pinned = false
+    /** The shelf stays open until you close it, unless you chose "close when I click elsewhere". */
+    private val pinned get() = !Prefs.closeOnOutside(ctx)
     private var editing = false
     private var keepHovers = 0
     private val selection = LinkedHashSet<String>()
@@ -97,7 +98,7 @@ class ShelfWindow(
     private val root = ShelfRoot(ctx, pal)
     private val panel = PanelLayout(ctx, pal)
     private val title = tech.atelier.portal.ui.TitleView(ctx, pal)
-    private val pinBtn = IconButtonView(ctx, pal, Glyph.PIN, "Keep shelf open")
+    private val pinBtn = IconButtonView(ctx, pal, Glyph.CHEVRON_UP, "Put the shelf away")
     private val clearBtn = IconButtonView(ctx, pal, Glyph.TRASH, "Edit and clear shelf")
     private val tiles = listOf(
         ActionTile(ctx, pal, Action.QUICK_SHARE),
@@ -168,11 +169,7 @@ class ShelfWindow(
         panel.addView(header, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
 
         title.setOnClickListener { openSettings() }
-        pinBtn.setOnClickListener {
-            pinned = !pinned
-            pinBtn.active = pinned
-            flash(if (pinned) "Shelf stays open" else "Shelf closes when you click away")
-        }
+        pinBtn.setOnClickListener { close() }
         clearBtn.setOnClickListener { onClearPressed() }
 
         // Three quick actions
@@ -213,10 +210,10 @@ class ShelfWindow(
         })
 
         root.addView(panel, FrameLayout.LayoutParams(panelW, ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.TOP or Gravity.CENTER_HORIZONTAL).apply {
-            leftMargin = ctx.dpi(34f)
-            rightMargin = ctx.dpi(34f)
-            topMargin = ctx.dpi(8f)
-            bottomMargin = ctx.dpi(34f)
+            leftMargin = ctx.dpi(44f)
+            rightMargin = ctx.dpi(44f)
+            topMargin = ctx.dpi(10f)
+            bottomMargin = ctx.dpi(44f)
         })
 
         stagger.clear()

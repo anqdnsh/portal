@@ -24,14 +24,14 @@ class PortalAccessibilityService : AccessibilityService() {
 
     private val main = Handler(Looper.getMainLooper())
     private var hub: ShelfHub? = null
-    private var lastUiMode = 0
+    private var lastConfig: Configuration? = null
 
     override fun onServiceConnected() {
         super.onServiceConnected()
         ShelfStore.init(this)
         // Only one host at a time.
         stopService(Intent(this, PortalOverlayService::class.java))
-        lastUiMode = resources.configuration.uiMode
+        lastConfig = Configuration(resources.configuration)
         val h = ShelfHub(this, WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY) { d ->
             if (d.displayId == Display.DEFAULT_DISPLAY) {
                 this to getSystemService(WindowManager::class.java)
@@ -121,11 +121,14 @@ class PortalAccessibilityService : AccessibilityService() {
 
     override fun onConfigurationChanged(newConfig: Configuration) {
         super.onConfigurationChanged(newConfig)
-        // Dark/light switch, fold/unfold, DeX on/off: rebuild the shelves to match.
-        if (newConfig.uiMode != lastUiMode) {
-            lastUiMode = newConfig.uiMode
-        }
-        main.post { hub?.rebuild() }
+        // Only rebuild for changes the shelf actually shows: dark/light, size or density
+        // (fold/unfold, DeX on/off). Other changes (keyboard plugged in, etc.) leave it alone.
+        val old = lastConfig
+        lastConfig = Configuration(newConfig)
+        val diff = old?.diff(newConfig) ?: -1
+        val matters = android.content.pm.ActivityInfo.CONFIG_UI_MODE or android.content.pm.ActivityInfo.CONFIG_DENSITY or
+            android.content.pm.ActivityInfo.CONFIG_SCREEN_SIZE or android.content.pm.ActivityInfo.CONFIG_SMALLEST_SCREEN_SIZE
+        if (diff and matters != 0) main.post { hub?.rebuild() }
     }
 
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {}

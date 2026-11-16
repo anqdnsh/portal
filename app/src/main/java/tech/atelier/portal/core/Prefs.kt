@@ -33,5 +33,8 @@ object Prefs {
     /** Jiggle the pointer left and right while dragging to open the shelf. */
     fun jiggle(ctx: Context): Boolean = of(ctx).getBoolean("jiggle", true)
 
+    /** Off by default: the shelf stays open until you put it away. */
+    fun closeOnOutside(ctx: Context): Boolean = of(ctx).getBoolean("close_outside", false)
+
     fun setBool(ctx: Context, key: String, v: Boolean) = of(ctx).edit().putBoolean(key, v).apply()
 }

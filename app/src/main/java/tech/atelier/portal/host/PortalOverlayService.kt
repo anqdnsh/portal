@@ -44,9 +44,15 @@ class PortalOverlayService : Service() {
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int = START_STICKY
 
+    private var lastConfig: Configuration? = null
+
     override fun onConfigurationChanged(newConfig: Configuration) {
         super.onConfigurationChanged(newConfig)
-        hub?.rebuild()
+        val old = lastConfig ?: Configuration(resources.configuration)
+        lastConfig = Configuration(newConfig)
+        val matters = android.content.pm.ActivityInfo.CONFIG_UI_MODE or android.content.pm.ActivityInfo.CONFIG_DENSITY or
+            android.content.pm.ActivityInfo.CONFIG_SCREEN_SIZE or android.content.pm.ActivityInfo.CONFIG_SMALLEST_SCREEN_SIZE
+        if (old.diff(newConfig) and matters != 0) hub?.rebuild()
     }
 
     override fun onDestroy() {

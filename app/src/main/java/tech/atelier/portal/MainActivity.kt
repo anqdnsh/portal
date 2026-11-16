@@ -109,7 +109,8 @@ class MainActivity : Activity() {
         trig.addView(toggle("Hold Shift while dragging", Prefs.shiftTrigger(this)) { Prefs.setBool(this, "shift_trigger", it) })
         trig.addView(toggle("Jiggle the pointer while dragging", Prefs.jiggle(this)) { Prefs.setBool(this, "jiggle", it) })
         trig.addView(toggle("Ctrl + Alt + Space", Prefs.hotkey(this)) { Prefs.setBool(this, "hotkey", it) })
-        trig.addView(text("Esc closes it. The pin keeps it open. Right-click (or the bin) to remove or pin items.", 12f, pal.sub).apply {
+        trig.addView(toggle("Close when I click elsewhere", Prefs.closeOnOutside(this)) { Prefs.setBool(this, "close_outside", it) })
+        trig.addView(text("The shelf stays open until you put it away with the arrow at the top, Esc or Ctrl + Alt + Space. Right-click (or the bin) to remove or pin items.", 12f, pal.sub).apply {
             setPadding(0, dpi(6f), 0, 0)
         })
         col.addView(trig)
@@ -146,7 +147,7 @@ class MainActivity : Activity() {
         clear.addView(text("Pinned items are never cleared.", 12f, pal.sub))
         col.addView(clear)
 
-        col.addView(text("Version 0.4.2", 12f, pal.sub).apply {
+        col.addView(text("Version 0.4.3", 12f, pal.sub).apply {
             gravity = Gravity.CENTER
             setPadding(0, dpi(18f), 0, 0)
         })

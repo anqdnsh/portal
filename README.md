@@ -8,7 +8,8 @@ frosted shelf springs down out of the notch. Drop to keep it. Drag it out to any
 ## Using it
 
 - **Open:** drag to the top centre · hold Shift while dragging · jiggle the pointer left-right while dragging · Ctrl + Alt + Space
-- **Close:** click anywhere else · Esc. The pin keeps it open.
+- **Close:** it stays open until you put it away: the arrow at the top of the shelf · Esc · Ctrl + Alt + Space.
+  (Settings has "Close when I click elsewhere" if you prefer that.)
 - **Keep:** drop anywhere on the shelf. Items survive restarts.
 - **Drag out:** press and pull an item (mouse), or long-press then drag (finger). Select several first to drag them together.
 - **Quick actions** (drop onto one, or click it to run on the selected items):

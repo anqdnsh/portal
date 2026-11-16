@@ -5,7 +5,7 @@ import android.graphics.Paint
 import android.graphics.Path
 import android.graphics.RectF
 
-enum class Glyph { QUICK_SHARE, COMPRESS, SHARE, CONVERT, MERGE, COPY, PIN, CLOSE, TRASH, CHECK }
+enum class Glyph { QUICK_SHARE, COMPRESS, SHARE, CONVERT, MERGE, COPY, PIN, CLOSE, TRASH, CHECK, CHEVRON_UP }
 
 /** Line icons on a 24×24 grid, drawn straight onto the canvas. No image files. */
 object Glyphs {
@@ -72,6 +72,9 @@ object Glyphs {
                 c.drawLine(4f, 7f, 20f, 7f, p)
                 path.reset(); path.moveTo(9f, 7f); path.lineTo(9f, 4f); path.lineTo(15f, 4f); path.lineTo(15f, 7f); c.drawPath(path, p)
                 path.reset(); path.moveTo(6f, 7f); path.lineTo(7f, 20f); path.lineTo(17f, 20f); path.lineTo(18f, 7f); c.drawPath(path, p)
+            }
+            Glyph.CHEVRON_UP -> {
+                path.reset(); path.moveTo(6f, 15f); path.lineTo(12f, 9f); path.lineTo(18f, 15f); c.drawPath(path, p)
             }
             Glyph.CHECK -> {
                 path.reset(); path.moveTo(5f, 12.5f); path.lineTo(10f, 17.5f); path.lineTo(19f, 7f); c.drawPath(path, p)
