@@ -60,8 +60,11 @@ class PortalAccessibilityService : AccessibilityService() {
         if (Build.VERSION.SDK_INT < 35) return
         try {
             val info = serviceInfo ?: return
+            // "Observe without taking": if this device doesn't offer it, don't watch at all,
+            // because plain watching would take the mouse away from apps.
+            val observe = info.javaClass.getMethod("setObservedMotionEventSources", Int::class.javaPrimitiveType)
             info.motionEventSources = InputDevice.SOURCE_MOUSE
-            info.setObservedMotionEventSources(InputDevice.SOURCE_MOUSE)
+            observe.invoke(info, InputDevice.SOURCE_MOUSE)
             serviceInfo = info
             PortalHost.mouseWatch = true
         } catch (_: Throwable) {
@@ -80,8 +83,7 @@ class PortalAccessibilityService : AccessibilityService() {
                 if (event.buttonState != 0) mouseDown = true
                 if (mouseDown && Prefs.jiggle(this) && shake.feed(event.rawX, event.eventTime)) {
                     PortalHost.lastJiggleAt = System.currentTimeMillis()
-                    val d = event.displayId
-                    main.post { hub?.requestOpenDuringDrag(d) }
+                    main.post { hub?.requestOpenDuringDrag() }
                 }
             }
         }
